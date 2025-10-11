@@ -7,16 +7,88 @@
 	import { analyzeAudio, recordAudio } from '$lib/ai/voice-analyzer';
 	import { calculateRiskScore } from '$lib/ai/risk-scorer';
 	import type { RiskAssessment } from '$lib/ai/risk-scorer';
+	import NotificationCenter from '$lib/components/NotificationCenter.svelte';
 
-	// Auth check
+	// Auth check and load cases
 	onMount(() => {
 		const unsubscribe = authStore.subscribe(state => {
 			if (!state.isAuthenticated && !state.isLoading) {
 				goto('/auth');
+			} else if (state.isAuthenticated) {
+				loadMyCases();
 			}
 		});
 		return unsubscribe;
 	});
+
+	// Tab State
+	let activeTab: 'new-case' | 'case-history' = 'new-case';
+
+	// Notifications
+	let showNotifications = false;
+
+	// Case History
+	let myCases: any[] = [];
+	let isLoadingCases = false;
+	let selectedCaseDetails: any = null;
+	let showCaseModal = false;
+
+	async function loadMyCases() {
+		if (!$authStore.user?.id) return;
+		
+		try {
+			isLoadingCases = true;
+			const response = await apiClient.cases.list({
+				userId: $authStore.user.id,
+				limit: 100
+			});
+			myCases = response.cases.sort((a: any, b: any) => 
+				new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+			);
+		} catch (error) {
+			console.error('Failed to load cases:', error);
+		} finally {
+			isLoadingCases = false;
+		}
+	}
+
+	function viewCaseDetails(caseItem: any) {
+		selectedCaseDetails = caseItem;
+		showCaseModal = true;
+	}
+
+	function closeCaseModal() {
+		showCaseModal = false;
+		selectedCaseDetails = null;
+	}
+
+	function getStatusBadgeClass(status: string): string {
+		const classes: Record<string, string> = {
+			'PENDING': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+			'APPROVED': 'bg-green-100 text-green-800 border-green-200',
+			'REJECTED': 'bg-red-100 text-red-800 border-red-200',
+			'UNDER_REVIEW': 'bg-blue-100 text-blue-800 border-blue-200'
+		};
+		return classes[status] || 'bg-gray-100 text-gray-800 border-gray-200';
+	}
+
+	function getPriorityBadgeClass(priority: number): string {
+		if (priority >= 75) return 'bg-red-500 text-white';
+		if (priority >= 50) return 'bg-orange-500 text-white';
+		if (priority >= 25) return 'bg-yellow-500 text-white';
+		return 'bg-green-500 text-white';
+	}
+
+	function formatDate(dateString: string): string {
+		const date = new Date(dateString);
+		return date.toLocaleDateString('en-US', { 
+			year: 'numeric', 
+			month: 'short', 
+			day: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit'
+		});
+	}
 
 	// Patient Info
 	let patientName = '';
@@ -273,9 +345,11 @@
 				}
 			}
 
-			// Reset form after 2 seconds
+			// Refresh case list and reset form after 2 seconds
+			await loadMyCases();
 			setTimeout(() => {
 				resetForm();
+				activeTab = 'case-history'; // Switch to case history to show the new case
 			}, 2000);
 
 		} catch (error: any) {
@@ -332,20 +406,61 @@
 					<h1 class="text-3xl font-bold text-gray-900">CHW Field App</h1>
 					<p class="mt-1 text-gray-600">Community Health Worker Data Collection</p>
 				</div>
-				<div class="text-right">
-					<p class="text-sm text-gray-600">Logged in as</p>
-					<p class="font-semibold text-gray-900">{$authStore.user?.name}</p>
+				<div class="flex items-center gap-4">
+					<button
+						type="button"
+						onclick={() => showNotifications = !showNotifications}
+						class="relative rounded-lg p-2 text-gray-600 hover:bg-gray-100 transition-colors"
+						aria-label="Notifications"
+					>
+						<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+						</svg>
+					</button>
+					<div class="text-right">
+						<p class="text-sm text-gray-600">Logged in as</p>
+						<p class="font-semibold text-gray-900">{$authStore.user?.name}</p>
+					</div>
 				</div>
+			</div>
+
+			<!-- Tabs -->
+			<div class="mt-6 flex gap-2 border-b border-gray-200">
+				<button
+					type="button"
+					onclick={() => activeTab = 'new-case'}
+					class="px-6 py-3 font-semibold transition-colors {activeTab === 'new-case' 
+						? 'border-b-2 border-blue-600 text-blue-600' 
+						: 'text-gray-600 hover:text-gray-900'}"
+				>
+					📝 New Case
+				</button>
+				<button
+					type="button"
+					onclick={() => activeTab = 'case-history'}
+					class="px-6 py-3 font-semibold transition-colors {activeTab === 'case-history' 
+						? 'border-b-2 border-blue-600 text-blue-600' 
+						: 'text-gray-600 hover:text-gray-900'}"
+				>
+					📋 Case History
+					{#if myCases.length > 0}
+						<span class="ml-2 rounded-full bg-blue-600 px-2 py-0.5 text-xs text-white">
+							{myCases.length}
+						</span>
+					{/if}
+				</button>
 			</div>
 		</div>
 
-		{#if saveMessage}
-			<div class="mb-6 rounded-lg {saveMessage.startsWith('✅') ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'} p-4 font-medium">
-				{saveMessage}
-			</div>
-		{/if}
+		{#if activeTab === 'new-case'}
+			<!-- New Case Form -->
+			{#if saveMessage}
+				<div class="mb-6 rounded-lg {saveMessage.startsWith('✅') ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'} p-4 font-medium">
+					{saveMessage}
+				</div>
+			{/if}
 
-		<form class="space-y-6">
+			<form class="space-y-6">
 			<!-- Patient Information -->
 			<div class="rounded-2xl bg-white p-6 shadow-lg">
 				<h2 class="mb-4 text-xl font-bold text-gray-900">Patient Information</h2>
@@ -717,5 +832,254 @@
 				Reset Form
 			</button>
 		</form>
+
+		{:else if activeTab === 'case-history'}
+			<!-- Case History View -->
+			<div class="space-y-4">
+				{#if isLoadingCases}
+					<div class="rounded-2xl bg-white p-12 text-center shadow-lg">
+						<div class="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
+						<p class="mt-4 text-gray-600">Loading your cases...</p>
+					</div>
+				{:else if myCases.length === 0}
+					<div class="rounded-2xl bg-white p-12 text-center shadow-lg">
+						<div class="text-6xl">📋</div>
+						<h3 class="mt-4 text-xl font-bold text-gray-900">No Cases Yet</h3>
+						<p class="mt-2 text-gray-600">Create your first case using the "New Case" tab</p>
+						<button
+							type="button"
+							onclick={() => activeTab = 'new-case'}
+							class="mt-6 rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-700"
+						>
+							Create New Case
+						</button>
+					</div>
+				{:else}
+					<!-- Statistics -->
+					<div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+						<div class="rounded-xl bg-white p-4 shadow-lg">
+							<p class="text-sm text-gray-600">Total Cases</p>
+							<p class="mt-1 text-3xl font-bold text-gray-900">{myCases.length}</p>
+						</div>
+						<div class="rounded-xl bg-yellow-50 p-4 shadow-lg">
+							<p class="text-sm text-gray-600">Pending</p>
+							<p class="mt-1 text-3xl font-bold text-yellow-600">
+								{myCases.filter(c => c.status === 'PENDING').length}
+							</p>
+						</div>
+						<div class="rounded-xl bg-green-50 p-4 shadow-lg">
+							<p class="text-sm text-gray-600">Approved</p>
+							<p class="mt-1 text-3xl font-bold text-green-600">
+								{myCases.filter(c => c.status === 'APPROVED').length}
+							</p>
+						</div>
+						<div class="rounded-xl bg-red-50 p-4 shadow-lg">
+							<p class="text-sm text-gray-600">Rejected</p>
+							<p class="mt-1 text-3xl font-bold text-red-600">
+								{myCases.filter(c => c.status === 'REJECTED').length}
+							</p>
+						</div>
+					</div>
+
+					<!-- Case List -->
+					<div class="space-y-3">
+						{#each myCases as caseItem}
+							<div class="rounded-2xl bg-white p-6 shadow-lg transition-shadow hover:shadow-xl">
+								<div class="flex items-start justify-between">
+									<div class="flex-1">
+										<div class="flex items-center gap-3">
+											<h3 class="text-lg font-bold text-gray-900">
+												{caseItem.patient?.name || 'Unknown Patient'}
+											</h3>
+											<span class="rounded-full border px-3 py-1 text-xs font-semibold {getStatusBadgeClass(caseItem.status)}">
+												{caseItem.status}
+											</span>
+											<span class="rounded-full px-2 py-1 text-xs font-semibold {getPriorityBadgeClass(caseItem.priority)}">
+												Priority {caseItem.priority}
+											</span>
+										</div>
+										
+										<div class="mt-2 flex flex-wrap gap-4 text-sm text-gray-600">
+											<span>👤 Age: {caseItem.patient?.age || 'N/A'}</span>
+											<span>🏥 {caseItem.chiefComplaint || 'No complaint'}</span>
+											<span>📅 {formatDate(caseItem.createdAt)}</span>
+										</div>
+
+										{#if caseItem.status === 'APPROVED' || caseItem.status === 'REJECTED'}
+											<div class="mt-3 rounded-lg {caseItem.status === 'APPROVED' ? 'bg-green-50' : 'bg-red-50'} p-3">
+												<p class="text-sm font-semibold {caseItem.status === 'APPROVED' ? 'text-green-900' : 'text-red-900'}">
+													{caseItem.status === 'APPROVED' ? '✅ Approved by ASHA' : '❌ Rejected by ASHA'}
+												</p>
+												{#if caseItem.reviewNotes}
+													<p class="mt-1 text-sm {caseItem.status === 'APPROVED' ? 'text-green-700' : 'text-red-700'}">
+														Feedback: {caseItem.reviewNotes}
+													</p>
+												{/if}
+											</div>
+										{/if}
+									</div>
+
+									<button
+										type="button"
+										onclick={() => viewCaseDetails(caseItem)}
+										class="ml-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+									>
+										View Details
+									</button>
+								</div>
+							</div>
+						{/each}
+					</div>
+
+					<!-- Refresh Button -->
+					<button
+						type="button"
+						onclick={loadMyCases}
+						disabled={isLoadingCases}
+						class="w-full rounded-lg border border-gray-300 bg-white px-6 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+					>
+						{isLoadingCases ? 'Refreshing...' : '🔄 Refresh Cases'}
+					</button>
+				{/if}
+			</div>
+		{/if}
 	</div>
 </div>
+
+<!-- Case Details Modal -->
+{#if showCaseModal && selectedCaseDetails}
+	<!-- svelte-ignore a11y-click-events-have-key-events -->
+	<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+	<div 
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" 
+		role="dialog" 
+		aria-modal="true"
+		tabindex="-1"
+		onclick={closeCaseModal}
+	>
+		<!-- svelte-ignore a11y-click-events-have-key-events -->
+		<!-- svelte-ignore a11y-no-static-element-interactions -->
+		<div 
+			class="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl" 
+			onclick={(e) => e.stopPropagation()}
+		>
+			<div class="sticky top-0 flex items-center justify-between border-b bg-white p-6">
+				<h2 class="text-2xl font-bold text-gray-900">Case Details</h2>
+				<button
+					type="button"
+					onclick={closeCaseModal}
+					aria-label="Close modal"
+					class="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
+				>
+					<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+					</svg>
+				</button>
+			</div>
+
+			<div class="p-6 space-y-6">
+				<!-- Case Status -->
+				<div class="rounded-xl {
+					selectedCaseDetails.status === 'APPROVED' ? 'bg-green-50 border-green-200' :
+					selectedCaseDetails.status === 'REJECTED' ? 'bg-red-50 border-red-200' :
+					'bg-yellow-50 border-yellow-200'
+				} border p-4">
+					<div class="flex items-center justify-between">
+						<div>
+							<p class="text-sm font-medium text-gray-600">Case Status</p>
+							<p class="mt-1 text-2xl font-bold {
+								selectedCaseDetails.status === 'APPROVED' ? 'text-green-600' :
+								selectedCaseDetails.status === 'REJECTED' ? 'text-red-600' :
+								'text-yellow-600'
+							}">
+								{selectedCaseDetails.status}
+							</p>
+						</div>
+						<div class="text-right">
+							<p class="text-sm font-medium text-gray-600">Priority Level</p>
+							<p class="mt-1 text-2xl font-bold text-gray-900">{selectedCaseDetails.priority}</p>
+						</div>
+					</div>
+				</div>
+
+				<!-- Patient Information -->
+				<div>
+					<h3 class="text-lg font-bold text-gray-900 mb-3">Patient Information</h3>
+					<div class="grid grid-cols-2 gap-4 rounded-xl bg-gray-50 p-4">
+						<div>
+							<p class="text-sm text-gray-600">Name</p>
+							<p class="font-semibold text-gray-900">{selectedCaseDetails.patient?.name || 'N/A'}</p>
+						</div>
+						<div>
+							<p class="text-sm text-gray-600">Age</p>
+							<p class="font-semibold text-gray-900">{selectedCaseDetails.patient?.age || 'N/A'}</p>
+						</div>
+						<div>
+							<p class="text-sm text-gray-600">Gender</p>
+							<p class="font-semibold text-gray-900">{selectedCaseDetails.patient?.gender || 'N/A'}</p>
+						</div>
+						<div>
+							<p class="text-sm text-gray-600">Phone</p>
+							<p class="font-semibold text-gray-900">{selectedCaseDetails.patient?.phone || 'N/A'}</p>
+						</div>
+					</div>
+				</div>
+
+				<!-- Chief Complaint -->
+				{#if selectedCaseDetails.chiefComplaint}
+					<div>
+						<h3 class="text-lg font-bold text-gray-900 mb-3">Chief Complaint</h3>
+						<p class="rounded-xl bg-gray-50 p-4 text-gray-700">{selectedCaseDetails.chiefComplaint}</p>
+					</div>
+				{/if}
+
+				<!-- Case Dates -->
+				<div>
+					<h3 class="text-lg font-bold text-gray-900 mb-3">Timeline</h3>
+					<div class="space-y-2 rounded-xl bg-gray-50 p-4">
+						<div class="flex items-center gap-2 text-sm">
+							<span class="font-semibold text-gray-700">Created:</span>
+							<span class="text-gray-600">{formatDate(selectedCaseDetails.createdAt)}</span>
+						</div>
+						{#if selectedCaseDetails.updatedAt !== selectedCaseDetails.createdAt}
+							<div class="flex items-center gap-2 text-sm">
+								<span class="font-semibold text-gray-700">Last Updated:</span>
+								<span class="text-gray-600">{formatDate(selectedCaseDetails.updatedAt)}</span>
+							</div>
+						{/if}
+					</div>
+				</div>
+
+				<!-- ASHA Review Feedback -->
+				{#if selectedCaseDetails.status === 'APPROVED' || selectedCaseDetails.status === 'REJECTED'}
+					<div>
+						<h3 class="text-lg font-bold text-gray-900 mb-3">ASHA Review</h3>
+						<div class="rounded-xl {selectedCaseDetails.status === 'APPROVED' ? 'bg-green-50' : 'bg-red-50'} p-4">
+							<p class="font-semibold {selectedCaseDetails.status === 'APPROVED' ? 'text-green-900' : 'text-red-900'}">
+								{selectedCaseDetails.status === 'APPROVED' ? '✅ Case Approved' : '❌ Case Rejected'}
+							</p>
+							{#if selectedCaseDetails.reviewNotes}
+								<p class="mt-2 text-sm {selectedCaseDetails.status === 'APPROVED' ? 'text-green-700' : 'text-red-700'}">
+									<strong>Feedback:</strong> {selectedCaseDetails.reviewNotes}
+								</p>
+							{/if}
+						</div>
+					</div>
+				{/if}
+			</div>
+
+			<div class="border-t bg-gray-50 p-6">
+				<button
+					type="button"
+					onclick={closeCaseModal}
+					class="w-full rounded-lg bg-gray-600 px-6 py-3 font-semibold text-white hover:bg-gray-700"
+				>
+					Close
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Notification Center -->
+<NotificationCenter isOpen={showNotifications} onClose={() => showNotifications = false} />

@@ -230,6 +230,15 @@ class APIClient {
 					body: JSON.stringify(data)
 				}
 			);
+		},
+
+		markRead: async (alertId: string) => {
+			return this.request<{ alert: any }>(
+				`/api/alerts/${alertId}/read`,
+				{
+					method: 'PUT'
+				}
+			);
 		}
 	};
 
