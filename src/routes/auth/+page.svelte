@@ -1,0 +1,252 @@
+<script lang="ts">
+	import { authStore } from '$lib/stores/auth-store';
+	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
+
+	let mode: 'login' | 'register' = 'login';
+	let email = '';
+	let password = '';
+	let name = '';
+	let role = 'CHW';
+	let phone = '';
+	let language = 'en';
+	let error = '';
+	let loading = false;
+
+	onMount(() => {
+		// Check if already authenticated
+		const unsubscribe = authStore.subscribe(state => {
+			if (state.isAuthenticated && !state.isLoading) {
+				// Redirect to home page after login
+				goto('/');
+			}
+		});
+
+		return unsubscribe;
+	});
+
+	async function handleSubmit() {
+		error = '';
+		loading = true;
+
+		try {
+			if (mode === 'login') {
+				const result = await authStore.login(email, password);
+				if (!result.success) {
+					error = result.error || 'Login failed';
+				}
+			} else {
+				if (!name || !email || !password) {
+					error = 'Please fill in all required fields';
+					loading = false;
+					return;
+				}
+
+				const result = await authStore.register({
+					email,
+					password,
+					name,
+					role,
+					phone: phone || undefined,
+					language
+				});
+
+				if (!result.success) {
+					error = result.error || 'Registration failed';
+				}
+			}
+		} catch (err: any) {
+			error = err.message || 'An error occurred';
+		} finally {
+			loading = false;
+		}
+	}
+
+	function toggleMode() {
+		mode = mode === 'login' ? 'register' : 'login';
+		error = '';
+	}
+</script>
+
+<div class="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-8">
+	<div class="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
+		<!-- Logo/Header -->
+		<div class="mb-8 text-center">
+			<h1 class="mb-2 text-3xl font-bold text-gray-900">Aarogya Health</h1>
+			<p class="text-gray-600">
+				{mode === 'login' ? 'Sign in to your account' : 'Create your account'}
+			</p>
+		</div>
+
+		<!-- Error Message -->
+		{#if error}
+			<div class="mb-4 rounded-lg bg-red-50 p-4 text-sm text-red-800">
+				{error}
+			</div>
+		{/if}
+
+		<!-- Form -->
+		<form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="space-y-4">
+			{#if mode === 'register'}
+				<!-- Name -->
+				<div>
+					<label for="name" class="mb-1 block text-sm font-medium text-gray-700">
+						Full Name *
+					</label>
+					<input
+						type="text"
+						id="name"
+						bind:value={name}
+						required
+						class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+						placeholder="Enter your full name"
+					/>
+				</div>
+
+				<!-- Role -->
+				<div>
+					<label for="role" class="mb-1 block text-sm font-medium text-gray-700">
+						Role *
+					</label>
+					<select
+						id="role"
+						bind:value={role}
+						class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+					>
+						<option value="CHW">Community Health Worker (CHW)</option>
+						<option value="ASHA">ASHA Supervisor</option>
+						<option value="CLINICIAN">Clinician</option>
+						<option value="ADMIN">Administrator</option>
+					</select>
+				</div>
+
+				<!-- Phone -->
+				<div>
+					<label for="phone" class="mb-1 block text-sm font-medium text-gray-700">
+						Phone Number
+					</label>
+					<input
+						type="tel"
+						id="phone"
+						bind:value={phone}
+						class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+						placeholder="+91 9876543210"
+					/>
+				</div>
+
+				<!-- Language -->
+				<div>
+					<label for="language" class="mb-1 block text-sm font-medium text-gray-700">
+						Preferred Language
+					</label>
+					<select
+						id="language"
+						bind:value={language}
+						class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+					>
+						<option value="en">English</option>
+						<option value="hi">हिंदी (Hindi)</option>
+						<option value="ta">தமிழ் (Tamil)</option>
+						<option value="te">తెలుగు (Telugu)</option>
+					</select>
+				</div>
+			{/if}
+
+			<!-- Email -->
+			<div>
+				<label for="email" class="mb-1 block text-sm font-medium text-gray-700">
+					Email Address *
+				</label>
+				<input
+					type="email"
+					id="email"
+					bind:value={email}
+					required
+					class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+					placeholder="your.email@example.com"
+				/>
+			</div>
+
+			<!-- Password -->
+			<div>
+				<label for="password" class="mb-1 block text-sm font-medium text-gray-700">
+					Password *
+				</label>
+				<input
+					type="password"
+					id="password"
+					bind:value={password}
+					required
+					minlength="6"
+					class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+					placeholder="••••••••"
+				/>
+				{#if mode === 'register'}
+					<p class="mt-1 text-xs text-gray-500">Minimum 6 characters</p>
+				{/if}
+			</div>
+
+			<!-- Submit Button -->
+			<button
+				type="submit"
+				disabled={loading}
+				class="w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+			>
+				{#if loading}
+					<span class="flex items-center justify-center">
+						<svg class="mr-2 h-5 w-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+							<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+						</svg>
+						Processing...
+					</span>
+				{:else}
+					{mode === 'login' ? 'Sign In' : 'Create Account'}
+				{/if}
+			</button>
+		</form>
+
+		<!-- Toggle Mode -->
+		<div class="mt-6 text-center">
+			<button
+				type="button"
+				onclick={toggleMode}
+				class="text-sm text-blue-600 hover:text-blue-700 hover:underline"
+			>
+				{mode === 'login' 
+					? "Don't have an account? Sign up" 
+					: 'Already have an account? Sign in'}
+			</button>
+		</div>
+
+		<!-- Quick Login (Dev Mode) -->
+		{#if mode === 'login'}
+			<div class="mt-6 border-t pt-4">
+				<p class="mb-2 text-center text-xs text-gray-500">Quick Demo Login:</p>
+				<div class="grid grid-cols-3 gap-2">
+					<button
+						type="button"
+						onclick={() => { email = 'chw@demo.com'; password = 'demo123'; }}
+						class="rounded bg-gray-100 px-2 py-1 text-xs hover:bg-gray-200"
+					>
+						CHW
+					</button>
+					<button
+						type="button"
+						onclick={() => { email = 'asha@demo.com'; password = 'demo123'; }}
+						class="rounded bg-gray-100 px-2 py-1 text-xs hover:bg-gray-200"
+					>
+						ASHA
+					</button>
+					<button
+						type="button"
+						onclick={() => { email = 'doctor@demo.com'; password = 'demo123'; }}
+						class="rounded bg-gray-100 px-2 py-1 text-xs hover:bg-gray-200"
+					>
+						Doctor
+					</button>
+				</div>
+			</div>
+		{/if}
+	</div>
+</div>

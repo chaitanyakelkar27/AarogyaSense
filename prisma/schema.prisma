@@ -1,0 +1,198 @@
+// Aarogya Health System - Database Schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CHW
+  ASHA
+  CLINICIAN
+  ADMIN
+}
+
+enum CaseStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+enum AlertLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AlertStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  phone         String?
+  password      String
+  name          String
+  role          UserRole
+  language      String   @default("en")
+  location      String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  cases         Case[]
+  diagnoses     Diagnosis[]
+  alerts        Alert[]
+  auditLogs     AuditLog[]
+  
+  @@index([email])
+  @@index([role])
+}
+
+model Patient {
+  id                String   @id @default(uuid())
+  name              String
+  age               Int
+  gender            String
+  phone             String?
+  village           String?
+  district          String?
+  emergencyContact  String?
+  allergies         String?
+  medicalHistory    String?
+  consentGiven      Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  // Relations
+  cases             Case[]
+  
+  @@index([phone])
+}
+
+model Case {
+  id                String     @id @default(uuid())
+  patientId         String
+  userId            String
+  symptoms          String
+  vitalSigns        String?    // JSON string
+  images            String?    // JSON array of image URLs
+  audioRecordings   String?    // JSON array of audio URLs
+  notes             String?
+  location          String?    // GPS coordinates
+  status            CaseStatus @default(PENDING)
+  priority          Int        @default(0)
+  isSynced          Boolean    @default(false)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  
+  // Relations
+  patient           Patient    @relation(fields: [patientId], references: [id])
+  user              User       @relation(fields: [userId], references: [id])
+  diagnoses         Diagnosis[]
+  alerts            Alert[]
+  
+  @@index([patientId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Diagnosis {
+  id                String   @id @default(uuid())
+  caseId            String
+  userId            String
+  condition         String
+  confidence        Float
+  riskScore         Float
+  urgency           AlertLevel
+  aiGenerated       Boolean  @default(false)
+  aiModelVersion    String?
+  recommendations   String
+  prescription      String?
+  followUpDate      DateTime?
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  // Relations
+  case              Case     @relation(fields: [caseId], references: [id])
+  clinician         User     @relation(fields: [userId], references: [id])
+  
+  @@index([caseId])
+  @@index([userId])
+}
+
+model Alert {
+  id                String      @id @default(uuid())
+  caseId            String
+  userId            String
+  level             AlertLevel
+  message           String
+  channels          String      // JSON array: ["sms", "push", "email"]
+  status            AlertStatus @default(PENDING)
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  failureReason     String?
+  retryCount        Int         @default(0)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  
+  // Relations
+  case              Case        @relation(fields: [caseId], references: [id])
+  recipient         User        @relation(fields: [userId], references: [id])
+  
+  @@index([caseId])
+  @@index([userId])
+  @@index([status])
+  @@index([level])
+}
+
+model AuditLog {
+  id                String   @id @default(uuid())
+  userId            String
+  action            String
+  resource          String
+  resourceId        String?
+  details           String?
+  outcome           String?
+  riskLevel         String?
+  ipAddress         String?
+  userAgent         String?
+  timestamp         DateTime @default(now())
+  
+  // Relations
+  user              User     @relation(fields: [userId], references: [id])
+  
+  @@index([userId])
+  @@index([action])
+  @@index([timestamp])
+}
+
+model ModelVersion {
+  id                String   @id @default(uuid())
+  name              String
+  version           String
+  type              String   // "image", "audio", "text", "fusion"
+  accuracy          Float?
+  size              Int      // bytes
+  downloadUrl       String
+  isActive          Boolean  @default(false)
+  metadata          String?  // JSON
+  createdAt         DateTime @default(now())
+  
+  @@unique([name, version])
+  @@index([type])
+  @@index([isActive])
+}

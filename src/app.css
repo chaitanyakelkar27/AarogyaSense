@@ -1,0 +1,164 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+	color-scheme: light;
+	--color-bg: 201 59% 97%;
+	--color-surface: 0 0% 100%;
+	--color-surface-soft: 192 56% 93%;
+	--color-surface-strong: 202 63% 17%;
+	--color-brand: 186 77% 33%;
+	--color-brand-foreground: 188 100% 96%;
+	--color-brand-muted: 186 71% 78%;
+	--color-accent: 32 96% 54%;
+	--color-muted: 210 12% 35%;
+	--color-border: 190 36% 82%;
+	--color-success: 150 75% 35%;
+	--color-warning: 41 91% 57%;
+	--color-info: 199 93% 44%;
+}
+
+@layer base {
+	*,
+	::before,
+	::after {
+		@apply border-border;
+	}
+
+	html,
+	body {
+		@apply h-full bg-[hsl(var(--color-bg))];
+	}
+
+	body {
+		@apply font-sans text-base text-surface-emphasis antialiased;
+		background-image: radial-gradient(circle at 20% 20%, rgba(16, 112, 122, 0.16), transparent 55%),
+			radial-gradient(circle at 80% 10%, rgba(255, 167, 67, 0.18), transparent 45%),
+			radial-gradient(circle at 20% 75%, rgba(16, 112, 122, 0.12), transparent 60%);
+		background-attachment: fixed;
+	}
+
+	h1,
+	h2,
+	h3,
+	h4,
+	h5,
+	h6 {
+		@apply font-display text-surface-emphasis tracking-tight;
+	}
+
+	p {
+		@apply leading-relaxed text-muted;
+	}
+
+	a {
+		@apply font-medium text-brand transition-colors hover:text-brand-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-2;
+	}
+}
+
+@layer components {
+	.glass {
+		@apply rounded-3xl border border-border/60 bg-surface/90 shadow-soft backdrop-blur;
+	}
+
+	.badge {
+		@apply inline-flex items-center gap-2 rounded-full border border-brand/20 bg-brand/10 px-4 py-1 text-sm font-medium text-brand;
+	}
+
+	.stat {
+		@apply flex flex-col gap-1 rounded-2xl border border-border/70 bg-surface-soft/60 p-5 text-left;
+	}
+
+	/* Interactive animations */
+	@keyframes fade-in {
+		from {
+			opacity: 0;
+			transform: translateY(10px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	@keyframes slide-up {
+		from {
+			transform: translateY(20px);
+			opacity: 0;
+		}
+		to {
+			transform: translateY(0);
+			opacity: 1;
+		}
+	}
+
+	@keyframes bounce-in {
+		0% {
+			transform: scale(0.3);
+			opacity: 0;
+		}
+		50% {
+			transform: scale(1.1);
+			opacity: 0.8;
+		}
+		100% {
+			transform: scale(1);
+			opacity: 1;
+		}
+	}
+
+	.animate-fade-in {
+		animation: fade-in 0.3s ease-out;
+	}
+
+	.animate-slide-up {
+		animation: slide-up 0.5s ease-out;
+	}
+
+	.animate-bounce-in {
+		animation: bounce-in 0.6s ease-out;
+	}
+
+	/* Pulse rings animation for hero section */
+	.bg-pulse-rings {
+		background-image: 
+			radial-gradient(circle at 50% 50%, rgba(16, 112, 122, 0.1) 0%, transparent 40%),
+			radial-gradient(circle at 30% 70%, rgba(255, 167, 67, 0.08) 0%, transparent 35%);
+		animation: pulse-rings 4s ease-in-out infinite;
+	}
+
+	@keyframes pulse-rings {
+		0%, 100% {
+			transform: scale(1);
+			opacity: 0.6;
+		}
+		50% {
+			transform: scale(1.1);
+			opacity: 0.8;
+		}
+	}
+
+	/* Interactive hover effects */
+	.hover-lift {
+		transition: all 0.3s ease;
+	}
+
+	.hover-lift:hover {
+		transform: translateY(-8px);
+		box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+	}
+
+	/* Custom brand variations */
+	.bg-brand-muted {
+		background-color: hsl(var(--color-brand-muted));
+	}
+
+	.bg-brand-light {
+		background-color: rgba(16, 112, 122, 0.1);
+	}
+
+	.bg-brand-soft {
+		background-color: rgba(16, 112, 122, 0.05);
+	}
+}
