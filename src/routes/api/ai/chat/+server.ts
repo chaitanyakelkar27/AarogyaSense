@@ -1,10 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import OpenAI from 'openai';
-
-const openai = new OpenAI({
-	apiKey: process.env.OPENAI_API_KEY || ''
-});
+import { OPENAI_API_KEY } from '$env/static/private';
 
 const SYSTEM_PROMPT = `You are an AI Health Assistant helping Community Health Workers (CHWs) in rural India assess patients. Your role is to:
 
@@ -48,7 +45,7 @@ interface Message {
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {
-		if (!process.env.OPENAI_API_KEY) {
+		if (!OPENAI_API_KEY) {
 			return json(
 				{ 
 					error: 'OpenAI API key not configured. Please add OPENAI_API_KEY to your .env file.',
@@ -57,6 +54,11 @@ export const POST: RequestHandler = async ({ request }) => {
 				{ status: 500 }
 			);
 		}
+
+		// Initialize OpenAI with the API key
+		const openai = new OpenAI({
+			apiKey: OPENAI_API_KEY
+		});
 
 		const { messages, patientInfo } = await request.json();
 
@@ -85,7 +87,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		// Call OpenAI API
 		const completion = await openai.chat.completions.create({
-			model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+			model: 'gpt-4o-mini',
 			messages: conversationMessages,
 			temperature: 0.7,
 			max_tokens: 500,
