@@ -317,6 +317,64 @@ class APIClient {
 				volumeTrend: any[];
 				dateRange: any;
 			}>(`/api/analytics/chw-performance${query ? `?${query}` : ''}`);
+		},
+
+		clinicianPerformance: async (params?: {
+			clinicianId?: string;
+			days?: number;
+		}) => {
+			const query = new URLSearchParams(params as any).toString();
+			return this.request<{
+				summary: any;
+				byClinician: any[];
+				dailyTrend: any[];
+				criticalCases: any[];
+				dateRange: any;
+			}>(`/api/analytics/clinician-performance${query ? `?${query}` : ''}`);
+		}
+	};
+
+	/**
+	 * Clinician endpoints
+	 */
+	clinician = {
+		getCases: async (params?: {
+			status?: string;
+			priorityMin?: number;
+			limit?: number;
+		}) => {
+			const query = new URLSearchParams(params as any).toString();
+			return this.request<{
+				cases: any[];
+				stats: any;
+				total: number;
+			}>(`/api/clinician/cases${query ? `?${query}` : ''}`);
+		},
+
+		reviewCase: async (caseId: string, data: {
+			action: 'accept' | 'refer' | 'prescribe';
+			diagnosis?: {
+				condition?: string;
+				confidence?: number;
+				riskScore?: number;
+				urgency?: string;
+				recommendations?: string;
+			};
+			prescription?: string;
+			notes?: string;
+			followUpDate?: string;
+			clinicianId?: string;
+			referralReason?: string;
+		}) => {
+			return this.request<{
+				case: any;
+				diagnosis: any;
+				alert: any;
+				message: string;
+			}>(`/api/cases/${caseId}/clinician-review`, {
+				method: 'PUT',
+				body: JSON.stringify(data)
+			});
 		}
 	};
 }

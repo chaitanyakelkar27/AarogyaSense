@@ -5,12 +5,31 @@
 
 	let { children } = $props();
 
-	const navItems = [
-		{ label: 'Home', href: '/' },
-		{ label: 'CHW App', href: '/chw' },
-		{ label: 'ASHA Portal', href: '/asha' },
-		{ label: 'Clinician Portal', href: '/clinician' }
+	// Role-based access control
+	const roleAccess = {
+		CLINICIAN: ['/', '/chw', '/asha', '/clinician'],
+		DOCTOR: ['/', '/chw', '/asha', '/clinician'],
+		ADMIN: ['/', '/chw', '/asha', '/clinician'],
+		ASHA: ['/', '/chw', '/asha'],
+		ASHA_SUPERVISOR: ['/', '/chw', '/asha'],
+		CHW: ['/', '/chw']
+	};
+
+	const allNavItems = [
+		{ label: 'Home', href: '/', roles: ['CHW', 'ASHA', 'ASHA_SUPERVISOR', 'CLINICIAN', 'DOCTOR', 'ADMIN'] },
+		{ label: 'CHW App', href: '/chw', roles: ['CHW', 'ASHA', 'ASHA_SUPERVISOR', 'CLINICIAN', 'DOCTOR', 'ADMIN'] },
+		{ label: '🤖 AI Assistant', href: '/chw/ai', roles: ['CHW', 'ASHA', 'ASHA_SUPERVISOR', 'CLINICIAN', 'DOCTOR', 'ADMIN'] },
+		{ label: 'ASHA Portal', href: '/asha', roles: ['ASHA', 'ASHA_SUPERVISOR', 'CLINICIAN', 'DOCTOR', 'ADMIN'] },
+		{ label: 'Clinician Portal', href: '/clinician', roles: ['CLINICIAN', 'DOCTOR', 'ADMIN'] }
 	];
+
+	// Filter nav items based on user role
+	let navItems = $derived(() => {
+		const userRole = $authStore.user?.role;
+		if (!userRole) return [{ label: 'Home', href: '/', roles: [] }];
+		
+		return allNavItems.filter(item => item.roles.includes(userRole));
+	});
 
 	let menuOpen = $state(false);
 
@@ -26,6 +45,13 @@
 		authStore.logout();
 		goto('/auth');
 		closeMenu();
+	}
+
+	// Check if user has access to a specific path
+	export function hasAccess(path: string, role: string | undefined): boolean {
+		if (!role) return false;
+		const allowedPaths = roleAccess[role as keyof typeof roleAccess] || ['/'];
+		return allowedPaths.some(p => path.startsWith(p));
 	}
 </script>
 
@@ -53,7 +79,7 @@
 				</div>
 			</a>
 			<nav class="hidden items-center gap-8 lg:flex">
-				{#each navItems as item}
+				{#each navItems() as item}
 					<a
 						href={item.href}
 						class="text-sm font-semibold text-muted transition-colors hover:text-surface-emphasis"
@@ -106,7 +132,7 @@
 		{#if menuOpen}
 			<div class="border-t border-border/60 bg-surface lg:hidden">
 				<nav class="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-5">
-					{#each navItems as item}
+					{#each navItems() as item}
 						<a
 							href={item.href}
 							class="text-base font-semibold text-muted transition-colors hover:text-surface-emphasis"

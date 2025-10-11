@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { writable } from 'svelte/store';
+	import { writable, get } from 'svelte/store';
 	import { authStore } from '$lib/stores/auth-store';
 	import { apiClient } from '$lib/api-client';
 	import OfflineDataManager from '$lib/offline-data-manager';
@@ -55,15 +55,22 @@
 		communityOutreach: []
 	};
 
+	let unauthorized = false;
+
 	onMount(() => {
-		// Auth check
-		const unsubscribe = authStore.subscribe(state => {
-			if (!state.isAuthenticated && !state.isLoading) {
-				goto('/auth');
-			} else if (state.user?.role !== 'ASHA' && state.user?.role !== 'ADMIN') {
-				goto('/');
-			}
-		});
+		// Simple one-time auth check using get()
+		const state = get(authStore);
+		if (!state.isAuthenticated) {
+			goto('/auth', { replaceState: true });
+			return;
+		}
+		
+		// Check if user has permission to access ASHA portal
+		const allowedRoles = ['ASHA', 'ASHA_SUPERVISOR', 'CLINICIAN', 'DOCTOR', 'ADMIN'];
+		if (!allowedRoles.includes(state.user?.role || '')) {
+			unauthorized = true;
+			return;
+		}
 
 		// Initialize backend systems in browser only
 		dataManager = new OfflineDataManager();
@@ -71,9 +78,11 @@
 		
 		loadDashboardData();
 		initializeFilters();
-		setInterval(loadDashboardData, 30000); // Refresh every 30 seconds
+		const interval = setInterval(loadDashboardData, 30000); // Refresh every 30 seconds
 
-		return unsubscribe;
+		return () => {
+			clearInterval(interval);
+		};
 	});
 
 	async function loadDashboardData() {
@@ -477,6 +486,33 @@
 </svelte:head>
 
 <div class="min-h-screen bg-gray-50">
+	{#if unauthorized}
+		<!-- Unauthorized Access Message -->
+		<div class="flex min-h-screen items-center justify-center p-4">
+			<div class="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+				<div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+					<svg class="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+					</svg>
+				</div>
+				<h2 class="text-2xl font-bold text-gray-900 mb-3">Access Denied</h2>
+				<p class="text-gray-600 mb-6">
+					You don't have permission to access the ASHA Portal. This area is restricted to ASHA workers, supervisors, clinicians, and administrators.
+				</p>
+				<div class="space-y-3">
+					<p class="text-sm text-gray-500">Your role: <strong>{$authStore.user?.role}</strong></p>
+					<a href="/" class="block w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+						Return to Home
+					</a>
+					{#if $authStore.user?.role === 'CHW'}
+						<a href="/chw" class="block w-full bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors">
+							Go to CHW Portal
+						</a>
+					{/if}
+				</div>
+			</div>
+		</div>
+	{:else}
 	<!-- Header -->
 	<header class="bg-white shadow-sm border-b">
 		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -840,7 +876,6 @@
 			</div>
 		{/if}
 	</div>
-</div>
 
 <!-- Case Details Modal -->
 {#if showCaseDetails && selectedCase}
@@ -963,3 +998,5 @@
 		border-radius: 3px;
 	}
 </style>
+{/if}
+</div>

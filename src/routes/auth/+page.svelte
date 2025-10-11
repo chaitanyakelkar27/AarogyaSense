@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { authStore } from '$lib/stores/auth-store';
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
+	import { get } from 'svelte/store';
 
 	let mode: 'login' | 'register' = 'login';
 	let email = '';
@@ -13,17 +13,21 @@
 	let error = '';
 	let loading = false;
 
-	onMount(() => {
-		// Check if already authenticated
-		const unsubscribe = authStore.subscribe(state => {
-			if (state.isAuthenticated && !state.isLoading) {
-				// Redirect to home page after login
-				goto('/');
-			}
-		});
-
-		return unsubscribe;
-	});
+	// Function to redirect based on role - NO DELAY, direct redirect
+	function redirectToRolePage(userRole: string | undefined) {
+		const roleStr = userRole?.toLowerCase();
+		if (roleStr === 'chw') {
+			goto('/chw', { replaceState: true });
+		} else if (roleStr === 'asha' || roleStr === 'asha_supervisor') {
+			goto('/asha', { replaceState: true });
+		} else if (roleStr === 'clinician' || roleStr === 'doctor') {
+			goto('/clinician', { replaceState: true });
+		} else if (roleStr === 'admin') {
+			goto('/admin', { replaceState: true });
+		} else {
+			goto('/', { replaceState: true });
+		}
+	}
 
 	async function handleSubmit() {
 		error = '';
@@ -31,9 +35,16 @@
 
 		try {
 			if (mode === 'login') {
+				console.log('[AUTH] Starting login...');
 				const result = await authStore.login(email, password);
+				console.log('[AUTH] Login result:', result.success, result.user?.role);
 				if (!result.success) {
 					error = result.error || 'Login failed';
+					loading = false;
+				} else {
+					// Success - redirect based on user role
+					console.log('[AUTH] Redirecting to role page...');
+					redirectToRolePage(result.user?.role);
 				}
 			} else {
 				if (!name || !email || !password) {
@@ -53,11 +64,14 @@
 
 				if (!result.success) {
 					error = result.error || 'Registration failed';
+					loading = false;
+				} else {
+					// Success - redirect based on user role
+					redirectToRolePage(result.user?.role);
 				}
 			}
 		} catch (err: any) {
 			error = err.message || 'An error occurred';
-		} finally {
 			loading = false;
 		}
 	}

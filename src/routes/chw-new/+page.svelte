@@ -8,17 +8,27 @@
 	import { calculateRiskScore } from '$lib/ai/risk-scorer';
 	import type { RiskAssessment } from '$lib/ai/risk-scorer';
 	import NotificationCenter from '$lib/components/NotificationCenter.svelte';
+	import { get } from 'svelte/store';
+
+	let unauthorized = false;
 
 	// Auth check and load cases
 	onMount(() => {
-		const unsubscribe = authStore.subscribe(state => {
-			if (!state.isAuthenticated && !state.isLoading) {
-				goto('/auth');
-			} else if (state.isAuthenticated) {
-				loadMyCases();
-			}
-		});
-		return unsubscribe;
+		// Simple one-time auth check using get()
+		const state = get(authStore);
+		if (!state.isAuthenticated) {
+			goto('/auth', { replaceState: true });
+			return;
+		}
+		
+		// Check if user has permission to access CHW portal
+		const allowedRoles = ['CHW', 'ASHA', 'ASHA_SUPERVISOR', 'CLINICIAN', 'DOCTOR', 'ADMIN'];
+		if (!allowedRoles.includes(state.user?.role || '')) {
+			unauthorized = true;
+			return;
+		}
+		
+		loadMyCases();
 	});
 
 	// Tab State
@@ -398,6 +408,28 @@
 </script>
 
 <div class="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 py-8 px-4">
+	{#if unauthorized}
+		<!-- Unauthorized Access Message -->
+		<div class="flex min-h-screen items-center justify-center p-4">
+			<div class="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+				<div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+					<svg class="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+					</svg>
+				</div>
+				<h2 class="text-2xl font-bold text-gray-900 mb-3">Access Denied</h2>
+				<p class="text-gray-600 mb-6">
+					You don't have permission to access the CHW Portal.
+				</p>
+				<div class="space-y-3">
+					<p class="text-sm text-gray-500">Your role: <strong>{$authStore.user?.role}</strong></p>
+					<a href="/" class="block w-full bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors">
+						Return to Home
+					</a>
+				</div>
+			</div>
+		</div>
+	{:else}
 	<div class="mx-auto max-w-4xl">
 		<!-- Header -->
 		<div class="mb-8 rounded-2xl bg-white p-6 shadow-lg">
@@ -1080,6 +1112,11 @@
 		</div>
 	</div>
 {/if}
+	</div>
+
 
 <!-- Notification Center -->
 <NotificationCenter isOpen={showNotifications} onClose={() => showNotifications = false} />
+{/if}
+</div>
+
