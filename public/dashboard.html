@@ -1,0 +1,103 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Asha Dashboard - Aarogyasense</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 20px; }
+      .alert { border: 1px solid #ddd; padding: 10px; margin-bottom: 8px; }
+      .sev-high { border-left: 6px solid #d9534f; }
+      .sev-medium { border-left: 6px solid #f0ad4e; }
+      .sev-low { border-left: 6px solid #5cb85c; }
+    </style>
+  </head>
+  <body>
+    <h1>ASHA Dashboard</h1>
+  <label>Area: <input id="area" value="all" /></label>
+  <button id="connect">Connect</button>
+  <span id="status" style="margin-left:10px;color:gray">Disconnected</span>
+    <h2>Incoming alerts</h2>
+    <div id="alerts"></div>
+
+    <script>
+      let es;
+      document.getElementById('connect').addEventListener('click', () => {
+        const area = document.getElementById('area').value || 'all';
+        if (es) es.close();
+        setStatus('Connecting...');
+        es = new EventSource(`/events?area=${encodeURIComponent(area)}`);
+
+        es.addEventListener('open', () => setStatus('Connected'));
+        es.addEventListener('error', (err) => setStatus('Disconnected (error)'));
+
+        es.addEventListener('init', (e) => {
+          // initial payload is an array of alerts
+          const arr = JSON.parse(e.data || '[]');
+          arr.reverse().forEach(a => addAlertToList(a));
+        });
+
+        es.addEventListener('new-alert', (e) => {
+          const data = JSON.parse(e.data);
+          addAlertToList(data);
+        });
+
+        es.addEventListener('verified', (e) => {
+          const data = JSON.parse(e.data);
+          updateAlertInList(data);
+        });
+
+        es.addEventListener('log', (e) => {
+          const data = JSON.parse(e.data);
+          // append logs to matching alert
+          const el = document.querySelector(`[data-id="${data.alert_id}"]`);
+          if (el) {
+            const logs = data.logs || [];
+            const logsEl = el.querySelector('.logs');
+            logsEl.innerHTML = logs.map(l=>`<div>${l.created_at}: ${l.note} (${l.asha_id})</div>`).join('');
+          }
+        });
+      });
+
+      function setStatus(text) {
+        const el = document.getElementById('status');
+        el.textContent = text;
+        el.style.color = text.startsWith('Connected') ? 'green' : 'red';
+      }
+
+      function addAlertToList(a) {
+        const div = document.createElement('div');
+        div.className = 'alert sev-' + (a.severity || 'low');
+        div.setAttribute('data-id', a.id);
+        div.innerHTML = `
+          <strong>${a.patient_name}</strong> - ${a.area} - <em>${a.severity}</em>
+          <div>${a.details || ''}</div>
+          <div>Created: ${a.created_at}</div>
+          <div class="controls">
+            <button onclick="verify(${a.id})">Verify</button>
+            <button onclick="addLogPrompt(${a.id})">Add Log</button>
+          </div>
+          <div class="logs"></div>
+        `;
+        document.getElementById('alerts').prepend(div);
+      }
+
+      function updateAlertInList(a) {
+        const el = document.querySelector(`[data-id="${a.id}"]`);
+        if (!el) return addAlertToList(a);
+        el.querySelector('.controls').insertAdjacentHTML('beforebegin', `<div>Verified by: ${a.verified_by} at ${a.verified_at}</div>`);
+      }
+
+      function verify(id) {
+        fetch(`/alerts/${id}/verify`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ asha_id: 'asha-1' }) })
+          .then(r=>r.json()).then(console.log).catch(console.error);
+      }
+
+      function addLogPrompt(id) {
+        const note = prompt('Enter follow-up notes:');
+        if (!note) return;
+        fetch(`/alerts/${id}/log`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ asha_id: 'asha-1', note }) })
+          .then(r=>r.json()).then(res=>console.log(res)).catch(console.error);
+      }
+    </script>
+  </body>
+</html>

@@ -1,38 +1,38 @@
-# sv
+# Aarogyasense - ASHA integration prototype
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+This small prototype implements the backend and a simple ASHA dashboard for the hackathon feature: ASHA Worker Integration (human-in-the-loop). It includes:
+- REST endpoints to create alerts and store follow-up logs
+- Server-Sent Events (SSE) to notify local ASHA dashboards by area
+- SQLite persistence (using better-sqlite3)
 
-## Creating a project
+Getting started
 
-If you're seeing this, you've probably already done this step. Congrats!
+1. Install dependencies
 
-```sh
-# create a new project in the current directory
-npx sv create
-
-# create a new project in my-app
-npx sv create my-app
+```powershell
+cd "C:\Users\KHUSHI SINGH\arogya"
+npm install
 ```
 
-## Developing
+2. Run server
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+```powershell
+npm start
 ```
 
-## Building
+3. Open the dashboard
 
-To create a production version of your app:
+Open http://localhost:3000/dashboard.html in a browser. Choose area and click Connect.
 
-```sh
-npm run build
+4. Test creating an alert (example)
+
+```powershell
+curl -X POST http://localhost:3000/alerts -H "Content-Type: application/json" -d '{"patient_name":"Ramesh","area":"village-1","severity":"high","details":"fever and shortness of breath"}'
 ```
 
-You can preview the production build with `npm run preview`.
+Next steps (suggestions)
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+- SMS & Voice alerts: integrate Twilio (or local SMS gateway) to send SMS and programmable voice calls for severe cases.
+- Authentication: add ASHA login, area mapping, and permissions.
+- Queueing: use a message queue (RabbitMQ) for reliable notifications and background SMS/call workers.
+- Monitoring/metrics, retry logic for SMS/voice, and fallback channels.
