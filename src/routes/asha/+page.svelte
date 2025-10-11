@@ -3,12 +3,18 @@
 	import { goto } from '$app/navigation';
 	import { writable } from 'svelte/store';
 	import { authStore } from '$lib/stores/auth-store';
+	import { apiClient } from '$lib/api-client';
 	import OfflineDataManager from '$lib/offline-data-manager';
 	import PrivacySecurityFramework from '$lib/privacy-security-framework';
 	
 	// Initialize backend systems (will be instantiated in onMount)
 	let dataManager: OfflineDataManager;
 	let securityFramework: PrivacySecurityFramework;
+	
+	// Loading states
+	let isLoading = true;
+	let isRefreshing = false;
+	let errorMessage = '';
 
 	// Dashboard state management
 	const dashboardData = writable({
@@ -72,35 +78,76 @@
 
 	async function loadDashboardData() {
 		try {
-			// Load cases from IndexedDB via OfflineDataManager
-			const storedCases = await dataManager.queryRecords('cases', {});
-			
-			// Generate sample CHW data for demonstration
-			const sampleCHWs = [
-				{ id: 'chw001', name: 'Priya Sharma', location: 'Village Rampur', active: true },
-				{ id: 'chw002', name: 'Rajesh Kumar', location: 'Village Khatoli', active: true },
-				{ id: 'chw003', name: 'Sunita Devi', location: 'Village Manpur', active: false },
-				{ id: 'chw004', name: 'Amit Singh', location: 'Village Bharatpur', active: true }
-			];
+			isRefreshing = true;
+			errorMessage = '';
 
-			// Enhance stored cases with CHW assignments and additional metadata
-			allCases = storedCases.map((case_item: any) => ({
-				...case_item,
-				assignedCHW: sampleCHWs[Math.floor(Math.random() * sampleCHWs.length)],
-				reviewStatus: case_item.aiAnalysis ? 
-					(case_item.aiAnalysis.riskLevel === 'critical' ? 'pending_urgent' : 
-					 case_item.aiAnalysis.riskLevel === 'high' ? 'pending_review' : 'auto_approved') : 'pending_analysis',
-				lastUpdated: new Date(case_item.timestamp).getTime(),
-				communityFollowUp: Math.random() > 0.7,
-				treatmentPlan: generateTreatmentPlan(case_item.aiAnalysis)
+			// Load CHW users from API
+			const chwResponse = await apiClient.chw.list({ active: true });
+			chwList = chwResponse.chws.map((chw: any) => ({
+				id: chw.id,
+				name: chw.name,
+				location: chw.location || 'Unknown',
+				active: chw.isActive,
+				email: chw.email,
+				phone: chw.phone,
+				stats: chw.stats
 			}));
 
-			chwList = sampleCHWs;
-			calculateDashboardStats();
-			filterCases();
-			generatePerformanceMetrics();
-		} catch (error) {
+			// Load cases from API
+			const casesResponse = await apiClient.cases.list({});
+			const apiCases = casesResponse.cases || [];
+
+			// Also load offline cases from IndexedDB
+			const offlineCases = await dataManager.queryRecords('cases', {});
+
+			// Merge and deduplicate cases
+			const casesMap = new Map();
+			
+			// Add API cases
+			apiCases.forEach((c: any) => {
+				casesMap.set(c.id, {
+					...c,
+					assignedCHW: chwList.find(chw => chw.id === c.userId) || { name: 'Unknown' },
+					reviewStatus: c.status.toLowerCase(),
+					lastUpdated: new Date(c.updatedAt).getTime(),
+					timestamp: c.createdAt,
+					patient: c.patient || { name: 'Unknown' },
+					synced: true
+				});
+			});
+
+			// Add offline cases (not yet synced)
+			offlineCases.forEach((c: any) => {
+				if (!casesMap.has(c.id)) {
+					casesMap.set(c.id, {
+						...c,
+						assignedCHW: chwList.find(chw => chw.id === c.userId) || { name: 'Unknown' },
+						reviewStatus: 'pending',
+						lastUpdated: new Date(c.timestamp).getTime(),
+						synced: false
+					});
+				}
+			});
+
+		allCases = Array.from(casesMap.values());
+		calculateDashboardStats();
+		filterCases();
+		await generatePerformanceMetrics();		} catch (error: any) {
 			console.error('Failed to load dashboard data:', error);
+			errorMessage = error.message || 'Failed to load data';
+			
+			// Fallback to offline data only
+			try {
+				const offlineCases = await dataManager.queryRecords('cases', {});
+				allCases = offlineCases;
+				calculateDashboardStats();
+				filterCases();
+			} catch (offlineError) {
+				console.error('Failed to load offline data:', offlineError);
+			}
+		} finally {
+			isLoading = false;
+			isRefreshing = false;
 		}
 	}
 
@@ -169,36 +216,54 @@
 		return now - caseTime <= ranges[range];
 	}
 
-	function generatePerformanceMetrics() {
-		// Generate sample performance data
-		const days = Array.from({ length: 7 }, (_, i) => {
-			const date = new Date();
-			date.setDate(date.getDate() - i);
-			return date.toISOString().split('T')[0];
-		}).reverse();
+	async function generatePerformanceMetrics() {
+		try {
+			// Fetch real analytics data from backend
+			const analytics = await apiClient.analytics.chwPerformance({ days: 7 });
 
-		performanceMetrics = {
-			caseVolume: days.map((date: string) => ({
-				date,
-				cases: Math.floor(Math.random() * 15) + 5,
-				completed: Math.floor(Math.random() * 12) + 3
-			})),
-			accuracyScores: chwList.map((chw: any) => ({
-				name: chw.name,
-				accuracy: Math.round(Math.random() * 20 + 75),
-				cases: Math.floor(Math.random() * 50) + 10
-			})),
-			responseTimesTrend: days.map((date: string) => ({
-				date,
-				avgTime: Math.round(Math.random() * 60 + 30)
-			})),
-			communityOutreach: [
-				{ metric: 'Households Visited', value: Math.floor(Math.random() * 500) + 200 },
-				{ metric: 'Health Screenings', value: Math.floor(Math.random() * 300) + 100 },
-				{ metric: 'Follow-ups Completed', value: Math.floor(Math.random() * 150) + 50 },
-				{ metric: 'Referrals Made', value: Math.floor(Math.random() * 50) + 10 }
-			]
-		};
+			// Transform API data to match UI format
+			performanceMetrics = {
+				caseVolume: analytics.volumeTrend.map((item: any) => ({
+					date: item.date,
+					cases: item.count,
+					completed: 0 // We don't have per-day completion data yet
+				})),
+				accuracyScores: analytics.byCHW.map((stat: any) => ({
+					name: stat.name,
+					accuracy: stat.approvalRate,
+					cases: stat.totalCases
+				})),
+				responseTimesTrend: analytics.volumeTrend.map((item: any) => ({
+					date: item.date,
+					avgTime: analytics.summary.avgResponseTime // Use overall avg for now
+				})),
+				communityOutreach: [
+					{ metric: 'Total Cases', value: analytics.summary.totalCases },
+					{ metric: 'Approved Cases', value: analytics.summary.approvedCases },
+					{ metric: 'Pending Review', value: analytics.summary.pendingCases },
+					{ metric: 'Critical Cases', value: analytics.summary.criticalCases }
+				]
+			};
+		} catch (error) {
+			console.error('Failed to fetch performance metrics:', error);
+			
+			// Fallback to basic metrics if API fails
+			performanceMetrics = {
+				caseVolume: [],
+				accuracyScores: chwList.map((chw: any) => ({
+					name: chw.name,
+					accuracy: 0,
+					cases: chw.totalCases || 0
+				})),
+				responseTimesTrend: [],
+				communityOutreach: [
+					{ metric: 'Total Cases', value: dashboardStats.totalCases },
+					{ metric: 'Approved Cases', value: 0 },
+					{ metric: 'Pending Review', value: dashboardStats.pendingReview },
+					{ metric: 'Critical Cases', value: dashboardStats.highRiskCases }
+				]
+			};
+		}
 	}
 
 	function initializeFilters() {
@@ -212,6 +277,16 @@
 
 	async function approveCase(caseId: string, decision: string, comments = '') {
 		try {
+			isLoading = true;
+			
+			// Call backend API for case review
+			if (decision === 'approve') {
+				await apiClient.review.approve(caseId, comments);
+			} else {
+				await apiClient.review.reject(caseId, comments);
+			}
+
+			// Update local state optimistically
 			allCases = allCases.map((case_item: any) => {
 				if (case_item.id === caseId) {
 					return {
@@ -220,7 +295,7 @@
 						treatmentPlan: {
 							...case_item.treatmentPlan,
 							status: decision === 'approve' ? 'approved' : 'revision_needed',
-							approvedBy: 'asha_supervisor',
+							approvedBy: $authStore.user?.id || 'asha_supervisor',
 							approvalDate: new Date().toISOString(),
 							comments: comments
 						}
@@ -229,79 +304,123 @@
 				return case_item;
 			});
 
-			// Find the updated case and save to IndexedDB
+			// Also save to IndexedDB for offline access
 			const updatedCase = allCases.find(c => c.id === caseId);
 			if (updatedCase) {
 				await dataManager.saveRecord('cases', updatedCase);
-				
-				// Log approval action to security framework
-				await securityFramework.logActivity(
-					'asha_supervisor', // TODO: Replace with actual authenticated user ID
-					decision === 'approve' ? 'case_approved' : 'case_revision_requested',
-					`case:${caseId}`,
-					{ comments, decision },
-					'success',
-					decision === 'approve' ? 'low' : 'medium'
-				);
-				
-				// Trigger sync
-				await dataManager.triggerSync();
 			}
 
 			calculateDashboardStats();
 			filterCases();
 			showCaseDetails = false;
+			
+			alert(`Case ${decision === 'approve' ? 'approved' : 'rejected'} successfully!`);
 		} catch (error: unknown) {
-			console.error('Failed to approve case:', error);
+			console.error('Failed to review case:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			alert('Error approving case: ' + errorMessage);
+			
+			// Fallback to offline-only save if API fails
+			try {
+				allCases = allCases.map((case_item: any) => {
+					if (case_item.id === caseId) {
+						return {
+							...case_item,
+							reviewStatus: decision === 'approve' ? 'approved' : 'needs_revision',
+							treatmentPlan: {
+								...case_item.treatmentPlan,
+								status: decision === 'approve' ? 'approved' : 'revision_needed',
+								approvedBy: $authStore.user?.id || 'asha_supervisor',
+								approvalDate: new Date().toISOString(),
+								comments: comments
+							}
+						};
+					}
+					return case_item;
+				});
+				const updatedCase = allCases.find(c => c.id === caseId);
+				if (updatedCase) {
+					await dataManager.saveRecord('cases', updatedCase);
+				}
+				calculateDashboardStats();
+				filterCases();
+				showCaseDetails = false;
+				alert('Saved offline. Will sync when connection is restored. Error: ' + errorMessage);
+			} catch (offlineError) {
+				alert('Error reviewing case: ' + errorMessage);
+			}
+		} finally {
+			isLoading = false;
 		}
 	}
 
 	async function escalateToClinic(caseId: string, reason: string) {
 		try {
+			isLoading = true;
+			
+			// Call backend API for case escalation
+			await apiClient.review.escalate(caseId, 5, reason); // Priority 5 for escalated cases
+
+			// Update local state optimistically
 			allCases = allCases.map((case_item: any) => {
 				if (case_item.id === caseId) {
 					return {
 						...case_item,
 						reviewStatus: 'escalated_to_clinic',
+						priority: 5,
 						escalation: {
 							reason: reason,
 							date: new Date().toISOString(),
-							escalatedBy: 'asha_supervisor'
+							escalatedBy: $authStore.user?.id || 'asha_supervisor'
 						}
 					};
 				}
 				return case_item;
 			});
 
-			// Find the updated case and save to IndexedDB
+			// Also save to IndexedDB for offline access
 			const updatedCase = allCases.find((c: any) => c.id === caseId);
 			if (updatedCase) {
 				await dataManager.saveRecord('cases', updatedCase);
-				
-				// Log escalation action to security framework
-				await securityFramework.logActivity(
-					'asha_supervisor', // TODO: Replace with actual authenticated user ID
-					'case_escalated_to_clinic',
-					`case:${caseId}`,
-					{ reason },
-					'success',
-					'high'
-				);
-				
-				// Trigger sync
-				await dataManager.triggerSync();
 			}
 
 			calculateDashboardStats();
 			filterCases();
 			showCaseDetails = false;
-			alert('Case escalated to clinic successfully and logged in security audit');
+			alert('Case escalated to clinic successfully!');
 		} catch (error: unknown) {
 			console.error('Failed to escalate case:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			alert('Error escalating case: ' + errorMessage);
+			
+			// Fallback to offline-only save if API fails
+			try {
+				allCases = allCases.map((case_item: any) => {
+					if (case_item.id === caseId) {
+						return {
+							...case_item,
+							reviewStatus: 'escalated_to_clinic',
+							priority: 5,
+							escalation: {
+								reason: reason,
+								date: new Date().toISOString(),
+								escalatedBy: $authStore.user?.id || 'asha_supervisor'
+							}
+						};
+					}
+					return case_item;
+				});
+				const updatedCase = allCases.find((c: any) => c.id === caseId);
+				if (updatedCase) {
+					await dataManager.saveRecord('cases', updatedCase);
+				}
+				calculateDashboardStats();
+				filterCases();
+				showCaseDetails = false;
+				alert('Saved offline. Will sync when connection is restored. Error: ' + errorMessage);
+			} catch (offlineError) {
+				alert('Error escalating case: ' + errorMessage);
+			}
+		} finally {
+			isLoading = false;
 		}
 	}
 

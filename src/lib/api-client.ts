@@ -232,6 +232,84 @@ class APIClient {
 			);
 		}
 	};
+
+	/**
+	 * CHW endpoints
+	 */
+	chw = {
+		list: async (params?: {
+			active?: boolean;
+			location?: string;
+		}) => {
+			const query = new URLSearchParams(params as any).toString();
+			return this.request<{ chws: any[]; total: number }>(
+				`/api/chw${query ? `?${query}` : ''}`
+			);
+		}
+	};
+
+	/**
+	 * Case review endpoints
+	 */
+	review = {
+		approve: async (caseId: string, notes?: string) => {
+			return this.request<{ case: any; message: string }>(
+				`/api/cases/${caseId}/review`,
+				{
+					method: 'PUT',
+					body: JSON.stringify({
+						action: 'approve',
+						notes
+					})
+				}
+			);
+		},
+
+		reject: async (caseId: string, notes?: string) => {
+			return this.request<{ case: any; message: string }>(
+				`/api/cases/${caseId}/review`,
+				{
+					method: 'PUT',
+					body: JSON.stringify({
+						action: 'reject',
+						notes
+					})
+				}
+			);
+		},
+
+		escalate: async (caseId: string, priority?: number, notes?: string) => {
+			return this.request<{ case: any; message: string }>(
+				`/api/cases/${caseId}/review`,
+				{
+					method: 'PUT',
+					body: JSON.stringify({
+						action: 'escalate',
+						priority,
+						notes
+					})
+				}
+			);
+		}
+	};
+
+	/**
+	 * Analytics endpoints
+	 */
+	analytics = {
+		chwPerformance: async (params?: {
+			chwId?: string;
+			days?: number;
+		}) => {
+			const query = new URLSearchParams(params as any).toString();
+			return this.request<{
+				summary: any;
+				byCHW: any[];
+				volumeTrend: any[];
+				dateRange: any;
+			}>(`/api/analytics/chw-performance${query ? `?${query}` : ''}`);
+		}
+	};
 }
 
 // Export singleton instance
