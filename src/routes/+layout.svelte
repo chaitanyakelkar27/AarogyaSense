@@ -18,7 +18,6 @@
 	const allNavItems = [
 		{ label: 'Home', href: '/', roles: ['CHW', 'ASHA', 'ASHA_SUPERVISOR', 'CLINICIAN', 'DOCTOR', 'ADMIN'] },
 		{ label: 'CHW App', href: '/chw', roles: ['CHW', 'ASHA', 'ASHA_SUPERVISOR', 'CLINICIAN', 'DOCTOR', 'ADMIN'] },
-		{ label: '🤖 AI Assistant', href: '/chw/ai', roles: ['CHW', 'ASHA', 'ASHA_SUPERVISOR', 'CLINICIAN', 'DOCTOR', 'ADMIN'] },
 		{ label: 'ASHA Portal', href: '/asha', roles: ['ASHA', 'ASHA_SUPERVISOR', 'CLINICIAN', 'DOCTOR', 'ADMIN'] },
 		{ label: 'Clinician Portal', href: '/clinician', roles: ['CLINICIAN', 'DOCTOR', 'ADMIN'] }
 	];

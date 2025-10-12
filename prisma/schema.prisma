@@ -21,6 +21,8 @@ enum CaseStatus {
   APPROVED
   REJECTED
   COMPLETED
+  FORWARDED_TO_CLINICIAN
+  CLOSED
 }
 
 enum AlertLevel {
@@ -94,6 +96,12 @@ model Case {
   location          String?    // GPS coordinates
   status            CaseStatus @default(PENDING)
   priority          Int        @default(0)
+  riskLevel         String?    // LOW, MEDIUM, HIGH, CRITICAL
+  riskScore         Int?       // 0-100
+  forwardedBy       String?    // ASHA worker ID who forwarded
+  forwardedAt       DateTime?  // When it was forwarded
+  closedBy          String?    // User ID who closed the case
+  closedAt          DateTime?  // When it was closed
   isSynced          Boolean    @default(false)
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
@@ -107,6 +115,8 @@ model Case {
   @@index([patientId])
   @@index([userId])
   @@index([status])
+  @@index([riskLevel])
+  @@index([priority])
   @@index([createdAt])
 }
 
