@@ -140,6 +140,20 @@
 		return [];
 	}
 
+	function parseMediaUrls(mediaJson: any): string[] {
+		if (!mediaJson) return [];
+		if (Array.isArray(mediaJson)) return mediaJson;
+		if (typeof mediaJson === 'string') {
+			try {
+				const parsed = JSON.parse(mediaJson);
+				return Array.isArray(parsed) ? parsed : [];
+			} catch {
+				return [];
+			}
+		}
+		return [];
+	}
+
 	function getRiskBadgeClass(riskLevel: string) {
 		switch (riskLevel) {
 			case 'CRITICAL':
@@ -408,25 +422,25 @@
 								</div>
 							{/if}
 
-							{#if selectedCase.images}
-								<div>
-									<p class="text-sm text-gray-600 mb-2">Attached Images:</p>
-									<div class="grid grid-cols-3 gap-4">
-										{#each JSON.parse(selectedCase.images) as imageUrl}
-											<img src={imageUrl} alt="Patient" class="w-full h-32 object-cover rounded-lg border border-gray-200" />
-										{/each}
-									</div>
-								</div>
-							{/if}
-
-							{#if selectedCase.audioRecordings}
-								<div>
-									<p class="text-sm text-gray-600 mb-2">Voice Recording:</p>
-									{#each JSON.parse(selectedCase.audioRecordings) as audioUrl}
-										<audio controls src={audioUrl} class="w-full"></audio>
+						{#if parseMediaUrls(selectedCase.images).length > 0}
+							<div>
+								<p class="text-sm text-gray-600 mb-2">Attached Images:</p>
+								<div class="grid grid-cols-3 gap-4">
+									{#each parseMediaUrls(selectedCase.images) as imageUrl}
+										<img src={imageUrl} alt="Patient" class="w-full h-32 object-cover rounded-lg border border-gray-200 hover:scale-105 transition-transform cursor-pointer" />
 									{/each}
 								</div>
-							{/if}
+							</div>
+						{/if}
+
+						{#if parseMediaUrls(selectedCase.audioRecordings).length > 0}
+							<div>
+								<p class="text-sm text-gray-600 mb-2">Voice Recording:</p>
+								{#each parseMediaUrls(selectedCase.audioRecordings) as audioUrl}
+									<audio controls src={audioUrl} class="w-full"></audio>
+								{/each}
+							</div>
+						{/if}
 						</div>
 					</div>
 

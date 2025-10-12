@@ -103,7 +103,19 @@ export const POST = async ({ request }: RequestEvent) => {
 		}
 
 		const body = await request.json();
-		const { patient, symptoms, vitalSigns, images, audioRecordings, notes, location } = body;
+		const { 
+			patient, 
+			symptoms, 
+			vitalSigns, 
+			images, 
+			audioRecordings, 
+			notes, 
+			location,
+			priority,
+			riskLevel,
+			riskScore,
+			status
+		} = body;
 
 		// Validate required fields
 		if (!patient || !symptoms) {
@@ -146,8 +158,10 @@ export const POST = async ({ request }: RequestEvent) => {
 				audioRecordings: audioRecordings ? JSON.stringify(audioRecordings) : null,
 				notes,
 				location,
-				status: 'PENDING',
-				priority: 0,
+				status: status || 'PENDING',
+				priority: priority || 0,
+				riskLevel: riskLevel || null,
+				riskScore: riskScore || null,
 				isSynced: true
 			},
 			include: {
@@ -173,7 +187,7 @@ export const POST = async ({ request }: RequestEvent) => {
 			}
 		});
 
-		return json(newCase, { status: 201 });
+		return json({ case: newCase }, { status: 201 });
 
 	} catch (error) {
 		console.error('Create case error:', error);

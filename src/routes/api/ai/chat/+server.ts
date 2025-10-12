@@ -152,11 +152,32 @@ export const POST: RequestHandler = async ({ request }) => {
 			// Not JSON, continue with text response
 		}
 
+		if (assessmentComplete && assessment) {
+			// Return structured assessment
+			return json({
+				success: true,
+				message: aiResponse,
+				assessment_complete: true,
+				assessment: {
+					priority: assessment.priority || 0,
+					risk_level: assessment.risk_level || 'LOW',
+					risk_score: assessment.risk_score || 0,
+					symptoms: assessment.symptoms || [],
+					recommendations: assessment.recommendations || '',
+					needs_escalation: assessment.needs_escalation || false,
+					escalate_to: assessment.escalate_to || '',
+					summary: assessment.summary || aiResponse
+				},
+				tokens_used: completion.usage?.total_tokens || 0
+			});
+		}
+
+		// Return conversational message
 		return json({
 			success: true,
 			message: aiResponse,
-			assessment_complete: assessmentComplete,
-			assessment: assessment,
+			assessment_complete: false,
+			assessment: null,
 			tokens_used: completion.usage?.total_tokens || 0
 		});
 

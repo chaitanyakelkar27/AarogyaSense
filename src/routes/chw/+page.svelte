@@ -249,21 +249,24 @@
 				content: data.message
 			});
 
-			// Add AI message to UI
-			addMessage('ai', data.message);
+			// Add AI message to UI (only if not JSON format)
+			if (!data.assessment_complete) {
+				addMessage('ai', data.message);
+			}
 
 			// Check if diagnosis is complete
-			if (data.diagnosis_complete) {
+			if (data.assessment_complete && data.assessment) {
 				diagnosisComplete = true;
+				const assessment = data.assessment;
 				diagnosisResult = {
-					priority: data.priority || 0,
-					riskLevel: data.risk_level || 'LOW',
-					riskScore: data.risk_score || 0,
-					symptoms: data.symptoms || [],
-					recommendations: data.recommendations || '',
-					needsEscalation: data.escalate_to !== '',
-					escalateTo: data.escalate_to || '',
-					summary: data.summary || data.message
+					priority: assessment.priority || 0,
+					riskLevel: assessment.risk_level || 'LOW',
+					riskScore: assessment.risk_score || 0,
+					symptoms: assessment.symptoms || [],
+					recommendations: assessment.recommendations || '',
+					needsEscalation: assessment.needs_escalation || false,
+					escalateTo: assessment.escalate_to || '',
+					summary: assessment.summary || 'Assessment completed'
 				};
 			}
 
