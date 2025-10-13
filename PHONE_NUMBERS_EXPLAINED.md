@@ -88,7 +88,6 @@ OR: +919876543210 (example India number)
 ### Step 2: Configure `.env`
 ```bash
 # Sender number (FROM Twilio)
-TWILIO_ACCOUNT_SID=""
 TWILIO_AUTH_TOKEN="your_auth_token_here"
 TWILIO_PHONE_NUMBER="+12345678"  # ← Number you bought from Twilio
 ```
