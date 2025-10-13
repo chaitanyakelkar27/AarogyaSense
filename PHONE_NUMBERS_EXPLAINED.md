@@ -9,14 +9,14 @@ You need **TWO** phone numbers:
 - **Purpose:** This is the number that SENDS the SMS/Call
 - **Where:** Add to `.env` file
 - **Format:** `+1234567890` (E.164 format)
-- **Example:** `+15551234567` (US number from Twilio)
+- **Example:** `+155324242` (US number from Twilio)
 
 ### 2️⃣ **DEMO_ASHA_PHONE** (Recipient - TO)
 - **What:** Your personal phone number or ASHA worker's number
 - **Purpose:** This is the number that RECEIVES the SMS/Call
 - **Where:** Hardcoded in `/src/routes/api/alerts/send/+server.ts` (Line 8)
-- **Format:** `+918779112231` (Your current number)
-- **Example:** `+918779112231` (Your India number)
+- **Format:** `+911234556678` (Your current number)
+- **Example:** `+9123245757` (Your India number)
 
 ---
 
@@ -33,18 +33,18 @@ You need **TWO** phone numbers:
 │  │                                                                  │  │
 │  │  FROM: TWILIO_PHONE_NUMBER (from .env)                          │  │
 │  │        ↓                                                         │  │
-│  │  Example: +15551234567 (Twilio number)                          │  │
+│  │  Example: +123456789 (Twilio number)                          │  │
 │  │                                                                  │  │
 │  │        📱 SMS/CALL SENT                                          │  │
 │  │                                                                  │  │
 │  │  TO: DEMO_ASHA_PHONE (hardcoded in alert endpoint)              │  │
 │  │        ↓                                                         │  │
-│  │  Example: +918779112231 (Your/ASHA's phone)                     │  │
+│  │  Example: +91123456789(Your/ASHA's phone)                     │  │
 │  │                                                                  │  │
 │  └──────────────────────────────────────────────────────────────────┘  │
 │                                                                         │
 │  Your Phone Receives: "HIGH RISK ALERT: Patient Raj Kumar..."          │
-│  Caller ID Shows: +15551234567 (Twilio number)                         │
+│  Caller ID Shows: +133445566778(Twilio number)                         │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -56,7 +56,7 @@ You need **TWO** phone numbers:
 ### Location 1: `.env` File (SENDER NUMBER)
 ```bash
 # This is the number FROM Twilio that SENDS messages
-TWILIO_PHONE_NUMBER="+15551234567"  # ← Replace with YOUR Twilio number
+TWILIO_PHONE_NUMBER="+12233445566"  # ← Replace with YOUR Twilio number
 ```
 
 **How to get this:**
@@ -71,7 +71,7 @@ TWILIO_PHONE_NUMBER="+15551234567"  # ← Replace with YOUR Twilio number
 
 ```typescript
 // This is YOUR phone number that RECEIVES alerts
-const DEMO_ASHA_PHONE = '+918779112231'; // ← Replace with recipient's number
+const DEMO_ASHA_PHONE = '+91123456789'; // ← Replace with recipient's number
 ```
 
 ---
@@ -81,8 +81,8 @@ const DEMO_ASHA_PHONE = '+918779112231'; // ← Replace with recipient's number
 ### Step 1: Get Twilio Number
 ```
 Sign up at Twilio → Get free $15 credit
-Buy a number: +15551234567 (example US number)
-OR: +919876543210 (example India number)
+Buy a number: +1512345566 (example US number)
+OR: +911234567 (example India number)
 ```
 
 ### Step 2: Configure `.env`
@@ -108,21 +108,21 @@ const DEMO_ASHA_PHONE = '+919999999999'; // New recipient number
 ## 🎭 Who Gets the Alert?
 
 ### Current Configuration:
-- **Recipient (TO):** `+918779112231` ← **You will receive the SMS/Call**
+- **Recipient (TO):** `+91123456678 ← **You will receive the SMS/Call**
 - **Sender (FROM):** `TWILIO_PHONE_NUMBER` from `.env` ← **Your Twilio number**
 
 ### Example Alert:
 ```
 ┌─────────────────────────────────────────────────────┐
-│  Your Phone: +918779112231                          │
+│  Your Phone: +9123456565443                         │
 │  ─────────────────────────────────────────────────  │
 │                                                     │
-│  📱 New Message from +15551234567                   │
+│  📱 New Message from +15123345444                   │
 │                                                     │
 │  🚨 HIGH RISK ALERT                                 │
 │                                                     │
 │  Patient: Raj Kumar                                 │
-│  Phone: +919876543210                               │
+│  Phone: +9123243543533                              │
 │  Risk Score: 65/100                                 │
 │  Symptoms: Fever, headache                          │
 │                                                     │
@@ -142,10 +142,10 @@ Edit `/src/routes/api/alerts/send/+server.ts` line 8:
 
 ```typescript
 // OLD (current - sends to YOU):
-const DEMO_ASHA_PHONE = '+918779112231';
+const DEMO_ASHA_PHONE = '+91q323343324';
 
 // NEW (sends to someone else):
-const DEMO_ASHA_PHONE = '+919876543210'; // Replace with ASHA worker's number
+const DEMO_ASHA_PHONE = '+912344345332'; // Replace with ASHA worker's number
 ```
 
 ### Option 2: Dynamic Recipient (Advanced)
@@ -164,24 +164,24 @@ So you can send different numbers dynamically from the CHW portal!
 
 ### Scenario 1: Test with YOUR Number
 ```
-TWILIO_PHONE_NUMBER="+15551234567"  (from Twilio)
-DEMO_ASHA_PHONE="+918779112231"     (your number)
+TWILIO_PHONE_NUMBER="+15123456789"  (from Twilio)
+DEMO_ASHA_PHONE="+9123246669"     (your number)
 
 Result: YOU receive SMS/Call from +15551234567
 ```
 
 ### Scenario 2: Test with ASHA Worker's Number
 ```
-TWILIO_PHONE_NUMBER="+15551234567"  (from Twilio)
-DEMO_ASHA_PHONE="+919876543210"     (ASHA's number)
+TWILIO_PHONE_NUMBER="+1123435355"  (from Twilio)
+DEMO_ASHA_PHONE="+911234566789"    (ASHA's number)
 
-Result: ASHA receives SMS/Call from +15551234567
+Result: ASHA receives SMS/Call from +1567564564
 ```
 
 ### Scenario 3: MOCK Mode (No Twilio Account)
 ```
 No .env file or empty credentials
-DEMO_ASHA_PHONE="+918779112231"
+DEMO_ASHA_PHONE="+918144324242"
 
 Result: Console logs only, no real SMS/Call
 ```
@@ -191,14 +191,14 @@ Result: Console logs only, no real SMS/Call
 ## ⚠️ Important Notes
 
 ### 1. Twilio Phone Number Countries
-- **India numbers:** Start with `+91` (e.g., `+919876543210`)
-- **USA numbers:** Start with `+1` (e.g., `+15551234567`)
+- **India numbers:** Start with `+91` (e.g., `+91234252`)
+- **USA numbers:** Start with `+1` (e.g., `+151342342`)
 - **Format:** Must be E.164 (no spaces, dashes, parentheses)
 
 ### 2. Recipient Phone Number
 - Can be **ANY valid phone number** worldwide
 - Does **NOT** need to be from Twilio
-- Your personal number works fine: `+918779112231` ✅
+- Your personal number works fine: `+91235345354` ✅
 
 ### 3. Costs
 - **Twilio number rental:** ~$1-2/month (after free trial)
@@ -210,7 +210,7 @@ Result: Console logs only, no real SMS/Call
 During Twilio free trial, you can only send to **verified numbers**:
 1. Go to https://console.twilio.com
 2. Phone Numbers → Verified Caller IDs
-3. Add `+918779112231` (your number)
+3. Add `+9123432532235` (your number)
 4. Verify via SMS code
 5. Now you can receive test messages!
 
@@ -220,17 +220,17 @@ During Twilio free trial, you can only send to **verified numbers**:
 
 | Number | Purpose | Where to Configure | Example |
 |--------|---------|-------------------|---------|
-| **TWILIO_PHONE_NUMBER** | Sender (FROM) | `.env` file | `+15551234567` |
-| **DEMO_ASHA_PHONE** | Recipient (TO) | `alert endpoint` line 8 | `+918779112231` |
+| **TWILIO_PHONE_NUMBER** | Sender (FROM) | `.env` file | `+112345645467` |
+| **DEMO_ASHA_PHONE** | Recipient (TO) | `alert endpoint` line 8 | `+91234545689` |
 
 **Your current setup:**
-- ✅ Recipient configured: `+918779112231` (your number)
+- ✅ Recipient configured: `+9123235434567` (your number)
 - ⚪ Sender needed: Add Twilio number to `.env`
 
 **What happens:**
 1. CHW creates HIGH/CRITICAL case
 2. System sends SMS from `TWILIO_PHONE_NUMBER` (Twilio)
-3. You receive SMS at `+918779112231` (your phone)
+3. You receive SMS at `+9123456689` (your phone)
 4. Caller ID shows the Twilio number
 
 ---
@@ -245,13 +245,13 @@ cp .env.example .env
 nano .env
 
 # Add this line:
-# TWILIO_PHONE_NUMBER="+15551234567"  # Your Twilio number
+# TWILIO_PHONE_NUMBER="+112323232"  # Your Twilio number
 
 # 3. (Optional) Change recipient number
 nano src/routes/api/alerts/send/+server.ts
 
 # Line 8: Change to recipient's number
-# const DEMO_ASHA_PHONE = '+919876543210';
+# const DEMO_ASHA_PHONE = '+919234324';
 
 # 4. Start server
 npm run dev
