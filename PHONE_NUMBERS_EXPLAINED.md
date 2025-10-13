@@ -88,15 +88,15 @@ OR: +919876543210 (example India number)
 ### Step 2: Configure `.env`
 ```bash
 # Sender number (FROM Twilio)
-TWILIO_ACCOUNT_SID="AC123456789abcdef123456789abcdef12"
+TWILIO_ACCOUNT_SID="ACxxxxxxxxxxxxxxxx"
 TWILIO_AUTH_TOKEN="your_auth_token_here"
-TWILIO_PHONE_NUMBER="+15551234567"  # ← Number you bought from Twilio
+TWILIO_PHONE_NUMBER="+12345678"  # ← Number you bought from Twilio
 ```
 
 ### Step 3: Configure Recipient (Optional)
 **File:** `/src/routes/api/alerts/send/+server.ts` (Line 8)
 
-**Current recipient:** `+918779112231` (Your number)
+**Current recipient:** `+9123456789` (Your number)
 
 **To change recipient:**
 ```typescript
