@@ -1,9 +1,10 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { authStore } from '$lib/stores/auth-store';
 	import { apiClient } from '$lib/api-client';
 	import { get } from 'svelte/store';
+	import { initializeSocket, subscribeToCaseUpdates, disconnectSocket } from '$lib/stores/socket-store';
 
 	let unauthorized = false;
 	let isLoading = true;
@@ -22,6 +23,8 @@
 		critical: 0
 	};
 
+	let unsubscribe: (() => void) | undefined;
+
 	onMount(() => {
 		const state = get(authStore);
 		if (!state.isAuthenticated) {
@@ -36,8 +39,27 @@
 		}
 
 		loadCases();
+
+		// Initialize WebSocket connection
+		initializeSocket();
+
+		// Subscribe to real-time case updates
+		unsubscribe = subscribeToCaseUpdates((data) => {
+			console.log('Received case update:', data);
+			// Reload cases when any case is updated
+			loadCases();
+		});
+
 		const interval = setInterval(loadCases, 30000); // Refresh every 30s
 		return () => clearInterval(interval);
+	});
+
+	onDestroy(() => {
+		// Clean up WebSocket subscription
+		if (unsubscribe) {
+			unsubscribe();
+		}
+		disconnectSocket();
 	});
 
 	async function loadCases() {
@@ -71,10 +93,12 @@
 
 		actionLoading = true;
 		try {
-			await fetch('/api/cases/update-status', {
+			const token = localStorage.getItem('auth_token');
+			const response = await fetch('/api/cases/update-status', {
 				method: 'PATCH',
 				headers: {
-					'Content-Type': 'application/json'
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${token}`
 				},
 				body: JSON.stringify({
 					caseId,
@@ -82,12 +106,30 @@
 				})
 			});
 
+			const result = await response.json();
+			
+			if (!response.ok || !result.success) {
+				throw new Error(result.error || 'Failed to update case');
+			}
+
+			// Update the case status in the local state immediately
+			if (selectedCase && selectedCase.id === caseId) {
+				selectedCase.status = 'COMPLETED';
+			}
+			
+			// Update in the allCases array
+			const caseIndex = allCases.findIndex(c => c.id === caseId);
+			if (caseIndex !== -1) {
+				allCases[caseIndex].status = 'COMPLETED';
+				allCases = [...allCases]; // Trigger reactivity
+			}
+
 			alert('Case marked as completed successfully');
 			showCaseModal = false;
 			await loadCases();
 		} catch (error) {
 			console.error('Failed to mark case as completed:', error);
-			alert('Failed to update case');
+			alert(error instanceof Error ? error.message : 'Failed to update case');
 		} finally {
 			actionLoading = false;
 		}
@@ -98,10 +140,12 @@
 
 		actionLoading = true;
 		try {
-			await fetch('/api/cases/update-status', {
+			const token = localStorage.getItem('auth_token');
+			const response = await fetch('/api/cases/update-status', {
 				method: 'PATCH',
 				headers: {
-					'Content-Type': 'application/json'
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${token}`
 				},
 				body: JSON.stringify({
 					caseId,
@@ -109,12 +153,30 @@
 				})
 			});
 
+			const result = await response.json();
+			
+			if (!response.ok || !result.success) {
+				throw new Error(result.error || 'Failed to close case');
+			}
+
+			// Update the case status in the local state immediately
+			if (selectedCase && selectedCase.id === caseId) {
+				selectedCase.status = 'CLOSED';
+			}
+			
+			// Update in the allCases array
+			const caseIndex = allCases.findIndex(c => c.id === caseId);
+			if (caseIndex !== -1) {
+				allCases[caseIndex].status = 'CLOSED';
+				allCases = [...allCases]; // Trigger reactivity
+			}
+
 			alert('Case marked as closed successfully');
 			showCaseModal = false;
 			await loadCases();
 		} catch (error) {
 			console.error('Failed to close case:', error);
-			alert('Failed to close case');
+			alert(error instanceof Error ? error.message : 'Failed to close case');
 		} finally {
 			actionLoading = false;
 		}
@@ -203,10 +265,10 @@
 		<header class="bg-white shadow-sm border-b">
 			<div class="max-w-7xl mx-auto px-4 py-4">
 				<div class="flex items-center justify-between">
-					<div class="flex items-center gap-4">
-						<a href="/" class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center hover:bg-blue-700 transition-colors">
+				<div class="flex items-center gap-4">
+						<a href="/" class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center hover:bg-blue-700 transition-colors" aria-label="Home">
 							<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
 							</svg>
 						</a>
 						<div>
@@ -356,6 +418,7 @@
 					<button
 						onclick={() => showCaseModal = false}
 						class="text-gray-400 hover:text-gray-600"
+						aria-label="Close modal"
 					>
 						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>

@@ -5,7 +5,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 // Hardcoded ASHA worker phone number for demo
-const DEMO_ASHA_PHONE = '+1234567890'; // Replace with actual demo number
+const DEMO_ASHA_PHONE = '+918779112231'; // Replace with actua~l demo number (E.164 format: no spaces)
 
 export async function POST({ request, locals }: RequestEvent) {
 	try {

@@ -6,6 +6,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { PrismaClient } from '@prisma/client';
+import { emitCaseUpdate } from '$lib/server/websocket';
 
 const prisma = new PrismaClient();
 
@@ -213,6 +214,11 @@ export const PUT: RequestHandler = async ({ params, request }) => {
 					riskLevel: 'low'
 				}
 			});
+		}
+
+		// Emit WebSocket event for real-time updates
+		if (updatedCase) {
+			emitCaseUpdate(id, updatedCase.status, clinicianId || 'clinician');
 		}
 
 		return json({

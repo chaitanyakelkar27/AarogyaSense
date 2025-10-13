@@ -1,9 +1,28 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import type { ViteDevServer } from 'vite';
+
+// Dynamic import to avoid server-side issues
+let initializeWebSocket: ((httpServer: any) => void) | null = null;
 
 export default defineConfig({
 	plugins: [
+		// Custom plugin to initialize WebSocket
+		{
+			name: 'websocket-server',
+			configureServer(server: ViteDevServer) {
+				if (server.httpServer) {
+					// Dynamically import the websocket module
+					import('./src/lib/server/websocket.js').then((mod) => {
+						initializeWebSocket = mod.initializeWebSocket;
+						if (initializeWebSocket && server.httpServer) {
+							initializeWebSocket(server.httpServer);
+						}
+					});
+				}
+			}
+		},
 		sveltekit(),
 		VitePWA({
 			registerType: 'autoUpdate',

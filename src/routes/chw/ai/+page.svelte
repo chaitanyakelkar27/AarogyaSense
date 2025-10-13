@@ -1,10 +1,9 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { authStore } from '$lib/stores/auth-store';
 	import { apiClient } from '$lib/api-client';
 	import { get } from 'svelte/store';
-	import { initializeSocket, subscribeToCaseUpdates, disconnectSocket } from '$lib/stores/socket-store';
 
 	let unauthorized = false;
 	let loading = false;
@@ -56,8 +55,7 @@
 		recommendations: '',
 		needsEscalation: false,
 		escalateTo: '' as 'ASHA' | 'CLINICIAN' | '',
-		summary: '',
-		possibleDiagnosis: ''
+		summary: ''
 	};
 
 	// Demo ASHA Workers
@@ -251,78 +249,21 @@
 				content: data.message
 			});
 
-			// Add AI message to UI (only if not JSON format)
-			if (!data.assessment_complete) {
-				addMessage('ai', data.message);
-			} else if (data.message) {
-				// For final assessment, show only the text part (remove JSON)
-				const cleanMessage = data.message.split('{')[0].trim();
-				if (cleanMessage) {
-					addMessage('ai', cleanMessage);
-				}
-			}
+			// Add AI message to UI
+			addMessage('ai', data.message);
 
 			// Check if diagnosis is complete
-			if (data.assessment_complete && data.assessment) {
+			if (data.diagnosis_complete) {
 				diagnosisComplete = true;
-				const assessment = data.assessment;
-				
-				// Clean summary by removing JSON block if present
-				let cleanSummary = assessment.summary || data.message || '';
-				
-				// Remove JSON block from summary
-				if (cleanSummary.includes('{')) {
-					const textBeforeJson = cleanSummary.split('{')[0].trim();
-					cleanSummary = textBeforeJson;
-				}
-				
-				// Remove generic/useless phrases and partial sentences
-				const genericPhrases = [
-					'Here is the assessment:',
-					'Here is the diagnosis:',
-					'Assessment:',
-					'Diagnosis:',
-					'Based on the information provided:',
-					'Based on the information you\'ve provided:',
-					'Based on your symptoms:',
-					'Thank you for the information.',
-					'Thank you for providing',
-					'Let me assess',
-					'I will now',
-					'Based on',
-					'According to'
-				];
-				
-				genericPhrases.forEach(phrase => {
-					if (cleanSummary.toLowerCase().includes(phrase.toLowerCase())) {
-						cleanSummary = cleanSummary.replace(new RegExp(phrase, 'gi'), '').trim();
-					}
-				});
-				
-				// Remove leading/trailing punctuation and check if meaningful
-				cleanSummary = cleanSummary.replace(/^[,.\-:\s]+|[,.\-:\s]+$/g, '').trim();
-				
-				// If summary is now empty, too short (< 30 chars), or just punctuation
-				// use possible_diagnosis or create summary
-				const hasLetters = /[a-zA-Z]{3,}/.test(cleanSummary);
-				if (!cleanSummary || cleanSummary.length < 30 || !hasLetters) {
-					if (assessment.possible_diagnosis) {
-						cleanSummary = assessment.possible_diagnosis;
-					} else {
-						cleanSummary = `Assessment completed for ${patientName}. Risk level: ${assessment.risk_level}. ${assessment.recommendations}`;
-					}
-				}
-				
 				diagnosisResult = {
-					priority: assessment.priority || 0,
-					riskLevel: assessment.risk_level || 'LOW',
-					riskScore: assessment.risk_score || 0,
-					symptoms: assessment.symptoms || [],
-					recommendations: assessment.recommendations || '',
-					needsEscalation: assessment.needs_escalation || false,
-					escalateTo: assessment.escalate_to || '',
-					summary: cleanSummary,
-					possibleDiagnosis: assessment.possible_diagnosis || ''
+					priority: data.priority || 0,
+					riskLevel: data.risk_level || 'LOW',
+					riskScore: data.risk_score || 0,
+					symptoms: data.symptoms || [],
+					recommendations: data.recommendations || '',
+					needsEscalation: data.escalate_to !== '',
+					escalateTo: data.escalate_to || '',
+					summary: data.summary || data.message
 				};
 			}
 
@@ -446,24 +387,6 @@
 		}
 	}
 
-	// Format diagnosis text to make disease names bold
-	function formatDiagnosisHTML(text: string): string {
-		// Common disease/condition patterns to bold
-		const patterns = [
-			// Disease names
-			/\b(viral fever|bacterial infection|dengue fever|malaria|typhoid|tuberculosis|pneumonia|bronchitis|asthma|hepatitis [A-Z]|jaundice|gastroenteritis|dysentery|cholera|diarrhea|food poisoning|dehydration|hypertension|diabetes|heart attack|cardiac event|stroke|sepsis|meningitis|encephalitis|covid-19|influenza|common cold|urinary tract infection|kidney infection|appendicitis)\b/gi,
-			// Condition patterns
-			/\b(acute respiratory distress|respiratory infection|gastrointestinal infection|cardiac arrhythmia|myocardial infarction|acute coronary syndrome|liver involvement|waterborne disease|vector-borne disease)\b/gi
-		];
-		
-		let formatted = text;
-		patterns.forEach(pattern => {
-			formatted = formatted.replace(pattern, '<strong class="text-blue-900">$&</strong>');
-		});
-		
-		return formatted;
-	}
-
 	function resetForm() {
 		patientName = '';
 		patientAge = '';
@@ -488,12 +411,9 @@
 			recommendations: '',
 			needsEscalation: false,
 			escalateTo: '',
-			summary: '',
-			possibleDiagnosis: ''
+			summary: ''
 		};
 	}
-
-	let unsubscribe: (() => void) | undefined;
 
 	onMount(() => {
 		const state = get(authStore);
@@ -507,23 +427,6 @@
 			unauthorized = true;
 			return;
 		}
-
-		// Initialize WebSocket connection
-		initializeSocket();
-
-		// Subscribe to real-time case updates
-		unsubscribe = subscribeToCaseUpdates((data) => {
-			console.log('Received case update:', data);
-			// You can add notification or UI feedback here if needed
-		});
-	});
-
-	onDestroy(() => {
-		// Clean up WebSocket subscription
-		if (unsubscribe) {
-			unsubscribe();
-		}
-		disconnectSocket();
 	});
 </script>
 
@@ -557,7 +460,7 @@
 					</a>
 					<div>
 						<h1 class="text-xl font-bold text-gray-900">AI Health Assessment</h1>
-						<p class="text-sm text-gray-600">Intelligent diagnostic support</p>
+						<p class="text-sm text-gray-600">Intelligent diagnostic support powered by GPT-4</p>
 					</div>
 				</div>
 				<div class="text-sm text-gray-600">
@@ -831,155 +734,72 @@
 			{:else}
 				<!-- Diagnosis Result -->
 				<div class="space-y-6">
-					<!-- FEATURED: Recommendations Card - MOST IMPORTANT -->
-					<div class="bg-white border-2 border-green-600 rounded-lg shadow-lg p-6">
-						<div class="flex items-start gap-4 mb-4">
-							<div class="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
-								<svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-								</svg>
-							</div>
-							<div class="flex-1">
-								<h2 class="text-xl font-bold text-gray-900 mb-1">Recommended Action</h2>
-								<p class="text-sm text-gray-600">What you should do for this patient</p>
-							</div>
-						</div>
+					<!-- Risk Assessment Card -->
+					<div class="bg-white rounded-lg shadow-lg p-8">
+						<h2 class="text-2xl font-bold text-gray-900 mb-6">Assessment Complete</h2>
 						
-						<div class="bg-green-50 border-l-4 border-green-600 rounded p-5">
-							<p class="text-base leading-relaxed text-gray-900">{diagnosisResult.recommendations}</p>
+						<div class="grid grid-cols-3 gap-6 mb-8">
+							<div class="text-center">
+								<p class="text-sm text-gray-600 mb-2">Risk Level</p>
+								<div class="inline-block px-6 py-3 rounded-lg font-bold text-lg
+									{diagnosisResult.riskLevel === 'CRITICAL' ? 'bg-red-100 text-red-800' : ''}
+									{diagnosisResult.riskLevel === 'HIGH' ? 'bg-orange-100 text-orange-800' : ''}
+									{diagnosisResult.riskLevel === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' : ''}
+									{diagnosisResult.riskLevel === 'LOW' ? 'bg-green-100 text-green-800' : ''}
+								">
+									{diagnosisResult.riskLevel}
+								</div>
+							</div>
+							
+							<div class="text-center">
+								<p class="text-sm text-gray-600 mb-2">Risk Score</p>
+								<div class="text-4xl font-bold text-gray-900">{diagnosisResult.riskScore}<span class="text-xl text-gray-500">/100</span></div>
+							</div>
+							
+							<div class="text-center">
+								<p class="text-sm text-gray-600 mb-2">Priority</p>
+								<div class="text-4xl font-bold text-gray-900">{diagnosisResult.priority}<span class="text-xl text-gray-500">/5</span></div>
+							</div>
 						</div>
 
 						{#if diagnosisResult.needsEscalation}
-							<div class="mt-4 bg-orange-50 border-l-4 border-orange-500 rounded p-4 flex items-start gap-3">
-								<svg class="w-6 h-6 flex-shrink-0 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
-									<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"/>
-								</svg>
-								<div>
-									<p class="font-semibold text-orange-900 mb-1">Escalation Required</p>
-									<p class="text-sm text-orange-800">This case will be automatically forwarded to <span class="font-semibold">{diagnosisResult.escalateTo}</span> for review</p>
-								</div>
+							<div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+								<p class="font-bold text-red-900 mb-2">Escalation Required</p>
+								<p class="text-red-700">This case requires attention from: <span class="font-bold">{diagnosisResult.escalateTo}</span></p>
+								<p class="text-sm text-red-600 mt-2">Alert will be sent automatically upon case submission</p>
 							</div>
 						{/if}
-					</div>
 
-					<!-- Risk Assessment -->
-					<div class="bg-white rounded-lg shadow-lg p-6">
-						<h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-							<svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-							</svg>
-							Risk Assessment
-						</h3>
-						
-						<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-							<!-- Risk Level -->
-							<div class="border-2 rounded-lg p-4 text-center
-								{diagnosisResult.riskLevel === 'CRITICAL' ? 'border-red-600 bg-red-50' : ''}
-								{diagnosisResult.riskLevel === 'HIGH' ? 'border-orange-500 bg-orange-50' : ''}
-								{diagnosisResult.riskLevel === 'MEDIUM' ? 'border-yellow-500 bg-yellow-50' : ''}
-								{diagnosisResult.riskLevel === 'LOW' ? 'border-green-600 bg-green-50' : ''}">
-								<p class="text-xs text-gray-600 mb-1">Risk Level</p>
-								<p class="text-xl font-bold
-									{diagnosisResult.riskLevel === 'CRITICAL' ? 'text-red-600' : ''}
-									{diagnosisResult.riskLevel === 'HIGH' ? 'text-orange-600' : ''}
-									{diagnosisResult.riskLevel === 'MEDIUM' ? 'text-yellow-600' : ''}
-									{diagnosisResult.riskLevel === 'LOW' ? 'text-green-600' : ''}">
-									{diagnosisResult.riskLevel}
-								</p>
-							</div>
-
-							<!-- Risk Score -->
-							<div class="border-2 border-gray-300 bg-gray-50 rounded-lg p-4 text-center">
-								<p class="text-xs text-gray-600 mb-1">Risk Score</p>
-								<p class="text-2xl font-bold text-gray-900">{diagnosisResult.riskScore}<span class="text-sm text-gray-500">/100</span></p>
-							</div>
-
-							<!-- Priority -->
-							<div class="border-2 border-gray-300 bg-gray-50 rounded-lg p-4 text-center">
-								<p class="text-xs text-gray-600 mb-1">Priority</p>
-								<p class="text-2xl font-bold text-gray-900">{diagnosisResult.priority}<span class="text-sm text-gray-500">/5</span></p>
-							</div>
-						</div>
-
-						<!-- Progress Bar -->
-						<div class="bg-gray-100 rounded-lg p-3">
-							<p class="text-xs font-medium text-gray-600 mb-2">Risk Severity Indicator</p>
-							<div class="w-full bg-gray-300 rounded-full h-4 overflow-hidden">
-								<div class="h-full rounded-full transition-all duration-1000 flex items-center justify-end pr-2
-									{diagnosisResult.riskLevel === 'CRITICAL' ? 'bg-red-600' : ''}
-									{diagnosisResult.riskLevel === 'HIGH' ? 'bg-orange-500' : ''}
-									{diagnosisResult.riskLevel === 'MEDIUM' ? 'bg-yellow-500' : ''}
-									{diagnosisResult.riskLevel === 'LOW' ? 'bg-green-600' : ''}"
-									style="width: {diagnosisResult.riskScore}%">
-									<span class="text-white text-xs font-semibold">{diagnosisResult.riskScore}%</span>
+						<div class="space-y-4">
+							<div>
+								<h3 class="font-bold text-gray-900 mb-2">Identified Symptoms</h3>
+								<div class="flex flex-wrap gap-2">
+									{#each diagnosisResult.symptoms as symptom}
+										<span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">{symptom}</span>
+									{/each}
 								</div>
 							</div>
-						</div>
-					</div>
 
-					<!-- Symptoms -->
-					<div class="bg-white rounded-lg shadow-lg p-6">
-						<h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-							<svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-							</svg>
-							Identified Symptoms
-						</h3>
-						<div class="flex flex-wrap gap-2">
-							{#each diagnosisResult.symptoms as symptom}
-								<span class="inline-flex items-center bg-gray-100 text-gray-800 px-3 py-1.5 rounded-md text-sm font-medium border border-gray-300">
-									{symptom}
-								</span>
-							{/each}
-						</div>
-					</div>
-
-					<!-- Possible Diagnosis -->
-					{#if diagnosisResult.possibleDiagnosis && diagnosisResult.possibleDiagnosis.trim()}
-						<div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-blue-500">
-							<h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-								<svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-								</svg>
-								Possible Diagnosis
-							</h3>
-							<div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-								<p class="text-gray-800 leading-relaxed font-medium">{@html formatDiagnosisHTML(diagnosisResult.possibleDiagnosis)}</p>
+							<div>
+								<h3 class="font-bold text-gray-900 mb-2">Recommendations</h3>
+								<div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+									<p class="text-gray-700 whitespace-pre-wrap">{diagnosisResult.recommendations}</p>
+								</div>
 							</div>
-						</div>
-					{/if}
 
-					<!-- Assessment Summary -->
-					{#if diagnosisResult.summary && diagnosisResult.summary.trim() && diagnosisResult.summary.length >= 30 && !/^(based on|according to|here is|thank you)/i.test(diagnosisResult.summary.trim())}
-						<div class="bg-white rounded-lg shadow-lg p-6">
-							<h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-								<svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-								</svg>
-								Assessment Details
-							</h3>
-							<div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-								<p class="text-gray-700 leading-relaxed">{diagnosisResult.summary}</p>
+							<div>
+								<h3 class="font-bold text-gray-900 mb-2">Assessment Summary</h3>
+								<div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+									<p class="text-gray-700 whitespace-pre-wrap">{diagnosisResult.summary}</p>
+								</div>
 							</div>
-						</div>
-					{/if}
 
-					<!-- Media Attachments -->
-					{#if uploadedImages.length > 0 || audioRecording}
-						<div class="bg-white rounded-lg shadow-lg p-6">
-							<h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-								<svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
-								</svg>
-								Attachments
-							</h3>
-							
 							{#if uploadedImages.length > 0}
-								<div class="mb-4">
-									<p class="text-sm font-medium text-gray-700 mb-3">Patient Images ({uploadedImages.length})</p>
-									<div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+								<div>
+									<h3 class="font-bold text-gray-900 mb-2">Attached Images ({uploadedImages.length})</h3>
+									<div class="grid grid-cols-4 gap-4">
 										{#each uploadedImages as image}
-											<img src={image.url} alt="Patient" class="w-full h-28 object-cover rounded-lg border border-gray-300" />
+											<img src={image.url} alt="Patient" class="w-full h-24 object-cover rounded-lg border border-gray-200" />
 										{/each}
 									</div>
 								</div>
@@ -987,41 +807,24 @@
 
 							{#if audioRecording}
 								<div>
-									<p class="text-sm font-medium text-gray-700 mb-3">Voice Recording</p>
+									<h3 class="font-bold text-gray-900 mb-2">Voice Recording</h3>
 									<audio controls src={audioRecording.url} class="w-full"></audio>
 								</div>
 							{/if}
 						</div>
-					{/if}
 
-					<!-- Action Buttons -->
-					<div class="bg-white rounded-lg shadow-lg p-6">
-						<div class="flex flex-col sm:flex-row gap-3">
+						<div class="flex gap-4 mt-8">
 							<button
 								onclick={submitCase}
 								disabled={submitting}
-								class="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+								class="flex-1 bg-green-600 text-white px-6 py-4 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 transition-all shadow-lg"
 							>
-								{#if submitting}
-									<svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-										<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-										<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-									</svg>
-									Submitting Case...
-								{:else}
-									<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-									</svg>
-									Submit Case
-								{/if}
+								{submitting ? 'Submitting...' : 'Submit Case'}
 							</button>
 							<button
 								onclick={resetForm}
-								class="px-6 py-3 border-2 border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+								class="px-6 py-4 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
 							>
-								<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-								</svg>
 								New Assessment
 							</button>
 						</div>

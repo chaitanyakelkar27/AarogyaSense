@@ -62,17 +62,31 @@ EXAMPLES:
 - "Fever 104°F, severe headache, vomiting" = 55-65 (HIGH)
 - "Chest pain, sweating, difficulty breathing" = 80-95 (CRITICAL)
 
-When you have enough information to make an assessment, respond with a JSON object in this format:
+When you have enough information to make an assessment, ONLY respond with the JSON object (no introductory text like "Here is the assessment:"):
 {
   "assessment_complete": true,
   "risk_score": 25,
   "priority": 2,
   "risk_level": "LOW",
   "symptoms": ["mild fever", "body ache"],
+  "possible_diagnosis": "Likely viral fever due to recent contact with sick individuals. The combination of low-grade fever and body ache without respiratory symptoms suggests a common viral infection.",
   "recommendations": "Rest, fluids, paracetamol. Monitor for 24-48 hours. Seek care if worsens.",
   "needs_escalation": false,
   "escalate_to": ""
 }
+
+CRITICAL: Do NOT add phrases like "Here is the assessment:" before the JSON. Just return the JSON directly.
+
+IMPORTANT: Always include "possible_diagnosis" field with:
+- The most likely condition/disease causing these symptoms
+- Brief explanation connecting symptoms to the diagnosis
+- Risk factors or triggers (e.g., "contact with sick person", "contaminated water", "seasonal outbreak")
+
+Examples:
+- Fever + contact with sick person = "Likely viral fever transmitted through close contact"
+- Diarrhea + vomiting + yellowing = "Possible hepatitis A or jaundice from contaminated food/water"
+- Chest pain + shortness of breath = "Possible cardiac event (heart attack) or severe respiratory distress"
+- High fever + headache + body pain = "Likely dengue fever given the seasonal outbreak and mosquito exposure"
 
 If you need more information, just ask your next question as plain text.`;
 

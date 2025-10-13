@@ -1,13 +1,21 @@
 import { json, type RequestEvent } from '@sveltejs/kit';
 import { PrismaClient } from '@prisma/client';
+import { extractToken, verifyToken } from '$lib/server/auth';
+import { emitCaseUpdate } from '$lib/server/websocket';
 
 const prisma = new PrismaClient();
 
-export async function PATCH({ request, locals }: RequestEvent) {
+export async function PATCH({ request }: RequestEvent) {
 	try {
-		const user = (locals as any).user;
-		if (!user) {
+		// Authentication
+		const token = extractToken(request.headers.get('Authorization'));
+		if (!token) {
 			return json({ error: 'Unauthorized' }, { status: 401 });
+		}
+
+		const payload = verifyToken(token);
+		if (!payload) {
+			return json({ error: 'Invalid token' }, { status: 401 });
 		}
 
 		const body = await request.json();
@@ -25,15 +33,15 @@ export async function PATCH({ request, locals }: RequestEvent) {
 		// Handle different actions
 		if (action === 'forward_to_clinician') {
 			updateData.status = 'FORWARDED_TO_CLINICIAN';
-			updateData.forwardedBy = user.id;
+			updateData.forwardedBy = payload.userId;
 			updateData.forwardedAt = new Date();
 		} else if (action === 'close' || action === 'mark_closed') {
 			updateData.status = 'CLOSED';
-			updateData.closedBy = user.id;
+			updateData.closedBy = payload.userId;
 			updateData.closedAt = new Date();
 		} else if (action === 'complete' || action === 'mark_completed') {
 			updateData.status = 'COMPLETED';
-			updateData.closedBy = user.id;
+			updateData.closedBy = payload.userId;
 			updateData.closedAt = new Date();
 		}
 
@@ -45,6 +53,9 @@ export async function PATCH({ request, locals }: RequestEvent) {
 				user: true
 			}
 		});
+
+		// Emit WebSocket event for real-time updates
+		emitCaseUpdate(caseId, updatedCase.status, payload.userId);
 
 		return json({
 			success: true,
