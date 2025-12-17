@@ -99,7 +99,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	try {
 		if (!OPENAI_API_KEY) {
 			return json(
-				{ 
+				{
 					error: 'OpenAI API key not configured. Please add OPENAI_API_KEY to your .env file.',
 					setup_required: true
 				},
@@ -112,17 +112,26 @@ export const POST: RequestHandler = async ({ request }) => {
 			apiKey: OPENAI_API_KEY
 		});
 
-		const { messages, patientInfo } = await request.json();
+		const { messages, patientInfo, language } = await request.json();
 
 		if (!messages || !Array.isArray(messages)) {
 			return json({ error: 'Invalid request: messages array required' }, { status: 400 });
 		}
 
+		// Determine language instruction based on locale
+		const languageMap: Record<string, string> = {
+			'en': 'English',
+			'hi': 'Hindi (हिंदी - use Devanagari script)',
+			'mr': 'Marathi (मराठी - use Devanagari script)'
+		};
+		const responseLanguage = languageMap[language || 'en'] || 'English';
+		const languageInstruction = `\n\nIMPORTANT: Respond ONLY in ${responseLanguage}. Do not use English if the user is using ${responseLanguage}. All questions, assessments, and recommendations must be in ${responseLanguage}.`;
+
 		// Build conversation context
 		const conversationMessages: Message[] = [
 			{
 				role: 'system',
-				content: SYSTEM_PROMPT
+				content: SYSTEM_PROMPT + languageInstruction
 			}
 		];
 
@@ -197,10 +206,10 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	} catch (error: any) {
 		console.error('OpenAI API Error:', error);
-		
+
 		if (error.code === 'insufficient_quota') {
 			return json(
-				{ 
+				{
 					error: 'OpenAI API quota exceeded. Please check your billing or upgrade your plan.',
 					quota_error: true
 				},
@@ -210,7 +219,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		if (error.code === 'invalid_api_key') {
 			return json(
-				{ 
+				{
 					error: 'Invalid OpenAI API key. Please check your OPENAI_API_KEY in .env file.',
 					auth_error: true
 				},
@@ -219,7 +228,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		return json(
-			{ 
+			{
 				error: error.message || 'Failed to process AI request',
 				details: error.toString()
 			},

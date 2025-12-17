@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { _ } from 'svelte-i18n';
+	import { _, locale } from 'svelte-i18n';
 	import { authStore } from '$lib/stores/auth-store';
 	import { apiClient } from '$lib/api-client';
 	import { get } from 'svelte/store';
@@ -215,6 +215,9 @@
 				enhancedMessage += `\n[Note: Voice recording available - analyze for respiratory distress, pain level, voice quality]`;
 			}
 
+			// Get current language
+			const currentLocale = get(locale) || 'en';
+
 			// Call backend AI API
 			const response = await fetch('/api/ai/chat', {
 				method: 'POST',
@@ -236,7 +239,8 @@
 						village: patientVillage,
 						hasImages: uploadedImages.length > 0,
 						hasAudio: audioRecording !== null
-					}
+					},
+					language: currentLocale
 				})
 			});
 
