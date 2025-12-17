@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { _ } from 'svelte-i18n';
 	import { authStore } from '$lib/stores/auth-store';
 	import { goto } from '$app/navigation';
 	import { get } from 'svelte/store';
@@ -82,13 +83,15 @@
 	}
 </script>
 
-<div class="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-8">
+<div
+	class="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-8"
+>
 	<div class="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
 		<!-- Logo/Header -->
 		<div class="mb-8 text-center">
-			<h1 class="mb-2 text-3xl font-bold text-gray-900">Aarogya Health</h1>
+			<h1 class="mb-2 text-3xl font-bold text-gray-900">{$_('home.title')}</h1>
 			<p class="text-gray-600">
-				{mode === 'login' ? 'Sign in to your account' : 'Create your account'}
+				{mode === 'login' ? $_('auth.loginToAccount') : $_('auth.loginToAccount')}
 			</p>
 		</div>
 
@@ -100,12 +103,18 @@
 		{/if}
 
 		<!-- Form -->
-		<form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="space-y-4">
+		<form
+			onsubmit={(e) => {
+				e.preventDefault();
+				handleSubmit();
+			}}
+			class="space-y-4"
+		>
 			{#if mode === 'register'}
 				<!-- Name -->
 				<div>
 					<label for="name" class="mb-1 block text-sm font-medium text-gray-700">
-						Full Name *
+						{$_('chw.patientName')} *
 					</label>
 					<input
 						type="text"
@@ -113,15 +122,13 @@
 						bind:value={name}
 						required
 						class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-						placeholder="Enter your full name"
+						placeholder={$_('chw.patientNamePlaceholder')}
 					/>
 				</div>
 
 				<!-- Role -->
 				<div>
-					<label for="role" class="mb-1 block text-sm font-medium text-gray-700">
-						Role *
-					</label>
+					<label for="role" class="mb-1 block text-sm font-medium text-gray-700"> Role * </label>
 					<select
 						id="role"
 						bind:value={role}
@@ -137,14 +144,14 @@
 				<!-- Phone -->
 				<div>
 					<label for="phone" class="mb-1 block text-sm font-medium text-gray-700">
-						Phone Number
+						{$_('chw.phoneNumber')}
 					</label>
 					<input
 						type="tel"
 						id="phone"
 						bind:value={phone}
 						class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-						placeholder="+91 9876543210"
+						placeholder={$_('chw.phoneNumberPlaceholder')}
 					/>
 				</div>
 
@@ -169,7 +176,7 @@
 			<!-- Email -->
 			<div>
 				<label for="email" class="mb-1 block text-sm font-medium text-gray-700">
-					Email Address *
+					{$_('auth.username')} *
 				</label>
 				<input
 					type="email"
@@ -177,14 +184,14 @@
 					bind:value={email}
 					required
 					class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-					placeholder="your.email@example.com"
+					placeholder={$_('auth.usernamePlaceholder')}
 				/>
 			</div>
 
 			<!-- Password -->
 			<div>
 				<label for="password" class="mb-1 block text-sm font-medium text-gray-700">
-					Password *
+					{$_('auth.password')} *
 				</label>
 				<input
 					type="password"
@@ -193,7 +200,7 @@
 					required
 					minlength="6"
 					class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-					placeholder="••••••••"
+					placeholder={$_('auth.passwordPlaceholder')}
 				/>
 				{#if mode === 'register'}
 					<p class="mt-1 text-xs text-gray-500">Minimum 6 characters</p>
@@ -208,14 +215,30 @@
 			>
 				{#if loading}
 					<span class="flex items-center justify-center">
-						<svg class="mr-2 h-5 w-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-							<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+						<svg
+							class="mr-2 h-5 w-5 animate-spin"
+							xmlns="http://www.w3.org/2000/svg"
+							fill="none"
+							viewBox="0 0 24 24"
+						>
+							<circle
+								class="opacity-25"
+								cx="12"
+								cy="12"
+								r="10"
+								stroke="currentColor"
+								stroke-width="4"
+							></circle>
+							<path
+								class="opacity-75"
+								fill="currentColor"
+								d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+							></path>
 						</svg>
-						Processing...
+						{$_('auth.loggingIn')}
 					</span>
 				{:else}
-					{mode === 'login' ? 'Sign In' : 'Create Account'}
+					{mode === 'login' ? $_('auth.loginButton') : $_('auth.loginButton')}
 				{/if}
 			</button>
 		</form>
@@ -227,37 +250,44 @@
 				onclick={toggleMode}
 				class="text-sm text-blue-600 hover:text-blue-700 hover:underline"
 			>
-				{mode === 'login' 
-					? "Don't have an account? Sign up" 
-					: 'Already have an account? Sign in'}
+				{mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
 			</button>
 		</div>
 
 		<!-- Quick Login (Dev Mode) -->
 		{#if mode === 'login'}
 			<div class="mt-6 border-t pt-4">
-				<p class="mb-2 text-center text-xs text-gray-500">Quick Demo Login:</p>
+				<p class="mb-2 text-center text-xs text-gray-500">{$_('auth.demoCredentials')}:</p>
 				<div class="grid grid-cols-3 gap-2">
 					<button
 						type="button"
-						onclick={() => { email = 'chw@demo.com'; password = 'demo123'; }}
+						onclick={() => {
+							email = 'chw@demo.com';
+							password = 'demo123';
+						}}
 						class="rounded bg-gray-100 px-2 py-1 text-xs hover:bg-gray-200"
 					>
-						CHW
+						{$_('auth.chw')}
 					</button>
 					<button
 						type="button"
-						onclick={() => { email = 'asha@demo.com'; password = 'demo123'; }}
+						onclick={() => {
+							email = 'asha@demo.com';
+							password = 'demo123';
+						}}
 						class="rounded bg-gray-100 px-2 py-1 text-xs hover:bg-gray-200"
 					>
-						ASHA
+						{$_('auth.asha')}
 					</button>
 					<button
 						type="button"
-						onclick={() => { email = 'doctor@demo.com'; password = 'demo123'; }}
+						onclick={() => {
+							email = 'doctor@demo.com';
+							password = 'demo123';
+						}}
 						class="rounded bg-gray-100 px-2 py-1 text-xs hover:bg-gray-200"
 					>
-						Doctor
+						{$_('auth.clinician')}
 					</button>
 				</div>
 			</div>

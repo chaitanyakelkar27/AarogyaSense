@@ -1,0 +1,13 @@
+import { addMessages, init, getLocaleFromNavigator } from 'svelte-i18n';
+import en from './locales/en.json';
+import hi from './locales/hi.json';
+import mr from './locales/mr.json';
+
+addMessages('en', en);
+addMessages('hi', hi);
+addMessages('mr', mr);
+
+init({
+    fallbackLocale: 'en',
+    initialLocale: getLocaleFromNavigator()
+});
