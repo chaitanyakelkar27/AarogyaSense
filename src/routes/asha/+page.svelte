@@ -1,10 +1,15 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { _ } from 'svelte-i18n';
 	import { authStore } from '$lib/stores/auth-store';
 	import { apiClient } from '$lib/api-client';
 	import { get } from 'svelte/store';
-	import { initializeSocket, subscribeToCaseUpdates, disconnectSocket } from '$lib/stores/socket-store';
+	import {
+		initializeSocket,
+		subscribeToCaseUpdates,
+		disconnectSocket
+	} from '$lib/stores/socket-store';
 
 	let unauthorized = false;
 	let isLoading = true;
@@ -33,7 +38,7 @@
 			goto('/auth', { replaceState: true });
 			return;
 		}
-		
+
 		const allowedRoles = ['ASHA', 'ASHA_SUPERVISOR', 'CLINICIAN', 'ADMIN'];
 		if (!allowedRoles.includes(state.user?.role || '')) {
 			unauthorized = true;
@@ -69,18 +74,19 @@
 			isLoading = true;
 			const response = await apiClient.cases.list({});
 			allCases = response.cases || [];
-			
+
 			// Filter high/critical priority cases
-			highPriorityCases = allCases.filter(c => 
-				(c.riskLevel === 'HIGH' || c.riskLevel === 'CRITICAL') &&
-				(c.status === 'PENDING' || c.status === 'UNDER_REVIEW')
+			highPriorityCases = allCases.filter(
+				(c) =>
+					(c.riskLevel === 'HIGH' || c.riskLevel === 'CRITICAL') &&
+					(c.status === 'PENDING' || c.status === 'UNDER_REVIEW')
 			);
 
 			// Calculate stats
 			stats.totalCases = allCases.length;
-			stats.pendingCases = allCases.filter(c => c.status === 'PENDING').length;
-			stats.highRiskCases = allCases.filter(c => c.riskLevel === 'HIGH').length;
-			stats.criticalCases = allCases.filter(c => c.riskLevel === 'CRITICAL').length;
+			stats.pendingCases = allCases.filter((c) => c.status === 'PENDING').length;
+			stats.highRiskCases = allCases.filter((c) => c.riskLevel === 'HIGH').length;
+			stats.criticalCases = allCases.filter((c) => c.riskLevel === 'CRITICAL').length;
 
 			isLoading = false;
 		} catch (error) {
@@ -104,7 +110,7 @@
 				method: 'PATCH',
 				headers: {
 					'Content-Type': 'application/json',
-					'Authorization': `Bearer ${token}`
+					Authorization: `Bearer ${token}`
 				},
 				body: JSON.stringify({
 					caseId,
@@ -113,7 +119,7 @@
 			});
 
 			const result = await response.json();
-			
+
 			if (!response.ok || !result.success) {
 				throw new Error(result.error || 'Failed to forward case');
 			}
@@ -139,7 +145,7 @@
 				method: 'PATCH',
 				headers: {
 					'Content-Type': 'application/json',
-					'Authorization': `Bearer ${token}`
+					Authorization: `Bearer ${token}`
 				},
 				body: JSON.stringify({
 					caseId,
@@ -148,7 +154,7 @@
 			});
 
 			const result = await response.json();
-			
+
 			if (!response.ok || !result.success) {
 				throw new Error(result.error || 'Failed to close case');
 			}
@@ -166,7 +172,11 @@
 
 	function formatDate(dateString: string) {
 		const date = new Date(dateString);
-		return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+		return (
+			date.toLocaleDateString() +
+			' ' +
+			date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+		);
 	}
 
 	function getRiskBadgeClass(riskLevel: string) {
@@ -193,7 +203,10 @@
 				return Array.isArray(parsed) ? parsed : [symptoms];
 			} catch {
 				// If not JSON, treat as comma-separated string
-				return symptoms.split(',').map((s: string) => s.trim()).filter((s: string) => s);
+				return symptoms
+					.split(',')
+					.map((s: string) => s.trim())
+					.filter((s: string) => s);
 			}
 		}
 		return [];
@@ -234,10 +247,13 @@
 {#if unauthorized}
 	<div class="flex min-h-screen items-center justify-center bg-gray-50 p-4">
 		<div class="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
-			<h2 class="text-2xl font-bold text-gray-900 mb-3">Access Denied</h2>
-			<p class="text-gray-600 mb-6">You don't have permission to access this page.</p>
-			<a href="/" class="block w-full bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors">
-				Return to Home
+			<h2 class="text-2xl font-bold text-gray-900 mb-3">{$_('asha.accessDenied')}</h2>
+			<p class="text-gray-600 mb-6">{$_('asha.noPermission')}</p>
+			<a
+				href="/"
+				class="block w-full bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors"
+			>
+				{$_('asha.returnHome')}
 			</a>
 		</div>
 	</div>
@@ -248,19 +264,28 @@
 			<div class="max-w-7xl mx-auto px-4 py-4">
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-4">
-						<a href="/" class="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center hover:bg-purple-700 transition-colors" aria-label="Home">
+						<a
+							href="/"
+							class="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center hover:bg-purple-700 transition-colors"
+							aria-label="Home"
+						>
 							<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+								/>
 							</svg>
 						</a>
 						<div>
-							<h1 class="text-xl font-bold text-gray-900">ASHA Worker Portal</h1>
-							<p class="text-sm text-gray-600">Community health case management</p>
+							<h1 class="text-xl font-bold text-gray-900">{$_('asha.portalTitle')}</h1>
+							<p class="text-sm text-gray-600">{$_('asha.portalSubtitle')}</p>
 						</div>
 					</div>
 					<div class="text-right">
 						<p class="text-sm font-medium text-gray-900">{$authStore.user?.name}</p>
-						<p class="text-xs text-gray-600">ASHA Worker</p>
+						<p class="text-xs text-gray-600">{$_('asha.ashaWorker')}</p>
 					</div>
 				</div>
 			</div>
@@ -271,14 +296,18 @@
 			<div class="max-w-7xl mx-auto px-4">
 				<div class="flex gap-8">
 					<button
-						onclick={() => activeTab = 'overview'}
-						class="py-4 border-b-2 font-medium transition-colors {activeTab === 'overview' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-600 hover:text-gray-900'}"
+						onclick={() => (activeTab = 'overview')}
+						class="py-4 border-b-2 font-medium transition-colors {activeTab === 'overview'
+							? 'border-purple-600 text-purple-600'
+							: 'border-transparent text-gray-600 hover:text-gray-900'}"
 					>
 						Overview
 					</button>
 					<button
-						onclick={() => activeTab = 'cases'}
-						class="py-4 border-b-2 font-medium transition-colors {activeTab === 'cases' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-600 hover:text-gray-900'}"
+						onclick={() => (activeTab = 'cases')}
+						class="py-4 border-b-2 font-medium transition-colors {activeTab === 'cases'
+							? 'border-purple-600 text-purple-600'
+							: 'border-transparent text-gray-600 hover:text-gray-900'}"
 					>
 						All Cases
 					</button>
@@ -290,8 +319,10 @@
 			{#if isLoading}
 				<div class="flex items-center justify-center py-20">
 					<div class="text-center">
-						<div class="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-						<p class="text-gray-600">Loading cases...</p>
+						<div
+							class="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"
+						></div>
+						<p class="text-gray-600">{$_('asha.loading')}</p>
 					</div>
 				</div>
 			{:else if activeTab === 'overview'}
@@ -300,19 +331,19 @@
 					<!-- Stats Cards -->
 					<div class="grid grid-cols-4 gap-6">
 						<div class="bg-white rounded-lg shadow p-6">
-							<p class="text-sm text-gray-600 mb-2">Total Cases</p>
+							<p class="text-sm text-gray-600 mb-2">{$_('asha.totalCases')}</p>
 							<p class="text-3xl font-bold text-gray-900">{stats.totalCases}</p>
 						</div>
 						<div class="bg-white rounded-lg shadow p-6">
-							<p class="text-sm text-gray-600 mb-2">Pending Review</p>
+							<p class="text-sm text-gray-600 mb-2">{$_('asha.pendingCases')}</p>
 							<p class="text-3xl font-bold text-yellow-600">{stats.pendingCases}</p>
 						</div>
 						<div class="bg-white rounded-lg shadow p-6">
-							<p class="text-sm text-gray-600 mb-2">High Risk</p>
+							<p class="text-sm text-gray-600 mb-2">{$_('asha.highRiskCases')}</p>
 							<p class="text-3xl font-bold text-orange-600">{stats.highRiskCases}</p>
 						</div>
 						<div class="bg-white rounded-lg shadow p-6">
-							<p class="text-sm text-gray-600 mb-2">Critical</p>
+							<p class="text-sm text-gray-600 mb-2">{$_('asha.criticalCases')}</p>
 							<p class="text-3xl font-bold text-red-600">{stats.criticalCases}</p>
 						</div>
 					</div>
@@ -320,17 +351,26 @@
 					<!-- High Priority Cases Requiring Action -->
 					<div class="bg-white rounded-lg shadow">
 						<div class="px-6 py-4 border-b border-gray-200">
-							<h2 class="text-xl font-bold text-gray-900">Cases Requiring Action</h2>
-							<p class="text-sm text-gray-600 mt-1">High and critical priority cases that need immediate attention</p>
+							<h2 class="text-xl font-bold text-gray-900">{$_('asha.highPriorityCases')}</h2>
+							<p class="text-sm text-gray-600 mt-1">{$_('asha.requiresAttention')}</p>
 						</div>
-						
 						{#if highPriorityCases.length === 0}
 							<div class="p-8 text-center">
-								<svg class="w-16 h-16 text-green-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+								<svg
+									class="w-16 h-16 text-green-500 mx-auto mb-4"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+									/>
 								</svg>
-								<p class="text-gray-900 font-medium">No high-priority cases</p>
-								<p class="text-sm text-gray-600 mt-1">All urgent cases have been addressed</p>
+								<p class="text-gray-900 font-medium">{$_('asha.noCasesFound')}</p>
+								<p class="text-sm text-gray-600 mt-1">{$_('common.allCasesAddressed')}</p>
 							</div>
 						{:else}
 							<div class="divide-y divide-gray-200">
@@ -339,27 +379,43 @@
 										<div class="flex items-start justify-between">
 											<div class="flex-1">
 												<div class="flex items-center gap-3 mb-2">
-													<h3 class="text-lg font-bold text-gray-900">{caseItem.patient?.name || 'Unknown Patient'}</h3>
-													<span class="px-3 py-1 rounded-full text-sm font-medium border {getRiskBadgeClass(caseItem.riskLevel)}">
+													<h3 class="text-lg font-bold text-gray-900">
+														{caseItem.patient?.name || 'Unknown Patient'}
+													</h3>
+													<span
+														class="px-3 py-1 rounded-full text-sm font-medium border {getRiskBadgeClass(
+															caseItem.riskLevel
+														)}"
+													>
 														{caseItem.riskLevel}
 													</span>
-													<span class="px-3 py-1 rounded-full text-sm font-medium {getStatusBadgeClass(caseItem.status)}">
+													<span
+														class="px-3 py-1 rounded-full text-sm font-medium {getStatusBadgeClass(
+															caseItem.status
+														)}"
+													>
 														{caseItem.status.replace(/_/g, ' ')}
 													</span>
 												</div>
-												
+
 												<div class="grid grid-cols-3 gap-4 text-sm mb-3">
 													<div>
 														<span class="text-gray-600">Age:</span>
-														<span class="font-medium text-gray-900 ml-1">{caseItem.patient?.age} years</span>
+														<span class="font-medium text-gray-900 ml-1"
+															>{caseItem.patient?.age} years</span
+														>
 													</div>
 													<div>
 														<span class="text-gray-600">Gender:</span>
-														<span class="font-medium text-gray-900 ml-1">{caseItem.patient?.gender}</span>
+														<span class="font-medium text-gray-900 ml-1"
+															>{caseItem.patient?.gender}</span
+														>
 													</div>
 													<div>
 														<span class="text-gray-600">Risk Score:</span>
-														<span class="font-bold text-gray-900 ml-1">{caseItem.riskScore || 0}/100</span>
+														<span class="font-bold text-gray-900 ml-1"
+															>{caseItem.riskScore || 0}/100</span
+														>
 													</div>
 												</div>
 
@@ -367,14 +423,20 @@
 													<p class="text-sm text-gray-600 mb-1">Symptoms:</p>
 													<div class="flex flex-wrap gap-2">
 														{#each parseSymptoms(caseItem.symptoms) as symptom}
-															<span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">{symptom}</span>
+															<span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs"
+																>{symptom}</span
+															>
 														{/each}
 													</div>
 												</div>
 
 												<div class="flex items-center gap-4 text-xs text-gray-600">
 													<span>CHW: {caseItem.user?.name || 'Unknown'}</span>
-													<span>Location: {caseItem.patient?.village || caseItem.location || 'N/A'}</span>
+													<span
+														>Location: {caseItem.patient?.village ||
+															caseItem.location ||
+															'N/A'}</span
+													>
 													<span>Reported: {formatDate(caseItem.createdAt)}</span>
 												</div>
 											</div>
@@ -421,25 +483,39 @@
 									<div class="flex items-start justify-between">
 										<div class="flex-1">
 											<div class="flex items-center gap-3 mb-2">
-												<h3 class="text-lg font-bold text-gray-900">{caseItem.patient?.name || 'Unknown Patient'}</h3>
+												<h3 class="text-lg font-bold text-gray-900">
+													{caseItem.patient?.name || 'Unknown Patient'}
+												</h3>
 												{#if caseItem.riskLevel}
-													<span class="px-3 py-1 rounded-full text-sm font-medium border {getRiskBadgeClass(caseItem.riskLevel)}">
+													<span
+														class="px-3 py-1 rounded-full text-sm font-medium border {getRiskBadgeClass(
+															caseItem.riskLevel
+														)}"
+													>
 														{caseItem.riskLevel}
 													</span>
 												{/if}
-												<span class="px-3 py-1 rounded-full text-sm font-medium {getStatusBadgeClass(caseItem.status)}">
+												<span
+													class="px-3 py-1 rounded-full text-sm font-medium {getStatusBadgeClass(
+														caseItem.status
+													)}"
+												>
 													{caseItem.status.replace(/_/g, ' ')}
 												</span>
 											</div>
-											
+
 											<div class="grid grid-cols-4 gap-4 text-sm mb-3">
 												<div>
 													<span class="text-gray-600">Age:</span>
-													<span class="font-medium text-gray-900 ml-1">{caseItem.patient?.age} years</span>
+													<span class="font-medium text-gray-900 ml-1"
+														>{caseItem.patient?.age} years</span
+													>
 												</div>
 												<div>
 													<span class="text-gray-600">Gender:</span>
-													<span class="font-medium text-gray-900 ml-1">{caseItem.patient?.gender}</span>
+													<span class="font-medium text-gray-900 ml-1"
+														>{caseItem.patient?.gender}</span
+													>
 												</div>
 												<div>
 													<span class="text-gray-600">Priority:</span>
@@ -447,20 +523,27 @@
 												</div>
 												<div>
 													<span class="text-gray-600">Risk Score:</span>
-													<span class="font-bold text-gray-900 ml-1">{caseItem.riskScore || 0}/100</span>
+													<span class="font-bold text-gray-900 ml-1"
+														>{caseItem.riskScore || 0}/100</span
+													>
 												</div>
 											</div>
 
-										<div class="mb-3">
-											<p class="text-sm text-gray-600 mb-1">Symptoms:</p>
-											<div class="flex flex-wrap gap-2">
-												{#each parseSymptoms(caseItem.symptoms) as symptom}
-													<span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">{symptom}</span>
-												{/each}
+											<div class="mb-3">
+												<p class="text-sm text-gray-600 mb-1">Symptoms:</p>
+												<div class="flex flex-wrap gap-2">
+													{#each parseSymptoms(caseItem.symptoms) as symptom}
+														<span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs"
+															>{symptom}</span
+														>
+													{/each}
+												</div>
 											</div>
-										</div>											<div class="flex items-center gap-4 text-xs text-gray-600">
+											<div class="flex items-center gap-4 text-xs text-gray-600">
 												<span>CHW: {caseItem.user?.name || 'Unknown'}</span>
-												<span>Location: {caseItem.patient?.village || caseItem.location || 'N/A'}</span>
+												<span
+													>Location: {caseItem.patient?.village || caseItem.location || 'N/A'}</span
+												>
 												<span>Reported: {formatDate(caseItem.createdAt)}</span>
 											</div>
 										</div>
@@ -504,12 +587,17 @@
 				<div class="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
 					<h2 class="text-2xl font-bold text-gray-900">Case Details</h2>
 					<button
-						onclick={() => showCaseModal = false}
+						onclick={() => (showCaseModal = false)}
 						class="text-gray-400 hover:text-gray-600"
 						aria-label="Close modal"
 					>
 						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M6 18L18 6M6 6l12 12"
+							/>
 						</svg>
 					</button>
 				</div>
@@ -525,7 +613,8 @@
 							</div>
 							<div>
 								<span class="text-gray-600">Age:</span>
-								<span class="font-medium text-gray-900 ml-2">{selectedCase.patient?.age} years</span>
+								<span class="font-medium text-gray-900 ml-2">{selectedCase.patient?.age} years</span
+								>
 							</div>
 							<div>
 								<span class="text-gray-600">Gender:</span>
@@ -533,11 +622,15 @@
 							</div>
 							<div>
 								<span class="text-gray-600">Phone:</span>
-								<span class="font-medium text-gray-900 ml-2">{selectedCase.patient?.phone || 'N/A'}</span>
+								<span class="font-medium text-gray-900 ml-2"
+									>{selectedCase.patient?.phone || 'N/A'}</span
+								>
 							</div>
 							<div>
 								<span class="text-gray-600">Village:</span>
-								<span class="font-medium text-gray-900 ml-2">{selectedCase.patient?.village || 'N/A'}</span>
+								<span class="font-medium text-gray-900 ml-2"
+									>{selectedCase.patient?.village || 'N/A'}</span
+								>
 							</div>
 						</div>
 					</div>
@@ -547,24 +640,40 @@
 						<h3 class="font-bold text-gray-900 mb-3">Case Information</h3>
 						<div class="space-y-3">
 							<div class="flex items-center gap-4">
-								<span class="px-4 py-2 rounded-lg border text-sm font-medium {getRiskBadgeClass(selectedCase.riskLevel)}">
+								<span
+									class="px-4 py-2 rounded-lg border text-sm font-medium {getRiskBadgeClass(
+										selectedCase.riskLevel
+									)}"
+								>
 									{selectedCase.riskLevel} RISK
 								</span>
-								<span class="px-4 py-2 rounded-lg text-sm font-medium {getStatusBadgeClass(selectedCase.status)}">
+								<span
+									class="px-4 py-2 rounded-lg text-sm font-medium {getStatusBadgeClass(
+										selectedCase.status
+									)}"
+								>
 									{selectedCase.status.replace(/_/g, ' ')}
 								</span>
-								<span class="text-sm text-gray-600">Priority: <span class="font-bold">{selectedCase.priority}/5</span></span>
-								<span class="text-sm text-gray-600">Risk Score: <span class="font-bold">{selectedCase.riskScore || 0}/100</span></span>
+								<span class="text-sm text-gray-600"
+									>Priority: <span class="font-bold">{selectedCase.priority}/5</span></span
+								>
+								<span class="text-sm text-gray-600"
+									>Risk Score: <span class="font-bold">{selectedCase.riskScore || 0}/100</span
+									></span
+								>
 							</div>
-							
-						<div>
-							<p class="text-sm text-gray-600 mb-2">Symptoms:</p>
-							<div class="flex flex-wrap gap-2">
-								{#each parseSymptoms(selectedCase.symptoms) as symptom}
-									<span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">{symptom}</span>
-								{/each}
+
+							<div>
+								<p class="text-sm text-gray-600 mb-2">Symptoms:</p>
+								<div class="flex flex-wrap gap-2">
+									{#each parseSymptoms(selectedCase.symptoms) as symptom}
+										<span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm"
+											>{symptom}</span
+										>
+									{/each}
+								</div>
 							</div>
-						</div>							{#if selectedCase.notes}
+							{#if selectedCase.notes}
 								<div>
 									<p class="text-sm text-gray-600 mb-1">Notes:</p>
 									<div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
@@ -573,25 +682,29 @@
 								</div>
 							{/if}
 
-						{#if parseMediaUrls(selectedCase.images).length > 0}
-							<div>
-								<p class="text-sm text-gray-600 mb-2">Attached Images:</p>
-								<div class="grid grid-cols-3 gap-4">
-									{#each parseMediaUrls(selectedCase.images) as imageUrl}
-										<img src={imageUrl} alt="Patient" class="w-full h-32 object-cover rounded-lg border border-gray-200 hover:scale-105 transition-transform cursor-pointer" />
+							{#if parseMediaUrls(selectedCase.images).length > 0}
+								<div>
+									<p class="text-sm text-gray-600 mb-2">Attached Images:</p>
+									<div class="grid grid-cols-3 gap-4">
+										{#each parseMediaUrls(selectedCase.images) as imageUrl}
+											<img
+												src={imageUrl}
+												alt="Patient"
+												class="w-full h-32 object-cover rounded-lg border border-gray-200 hover:scale-105 transition-transform cursor-pointer"
+											/>
+										{/each}
+									</div>
+								</div>
+							{/if}
+
+							{#if parseMediaUrls(selectedCase.audioRecordings).length > 0}
+								<div>
+									<p class="text-sm text-gray-600 mb-2">Voice Recording:</p>
+									{#each parseMediaUrls(selectedCase.audioRecordings) as audioUrl}
+										<audio controls src={audioUrl} class="w-full"></audio>
 									{/each}
 								</div>
-							</div>
-						{/if}
-
-						{#if parseMediaUrls(selectedCase.audioRecordings).length > 0}
-							<div>
-								<p class="text-sm text-gray-600 mb-2">Voice Recording:</p>
-								{#each parseMediaUrls(selectedCase.audioRecordings) as audioUrl}
-									<audio controls src={audioUrl} class="w-full"></audio>
-								{/each}
-							</div>
-						{/if}
+							{/if}
 						</div>
 					</div>
 
@@ -599,16 +712,38 @@
 					<div>
 						<h3 class="font-bold text-gray-900 mb-3">Metadata</h3>
 						<div class="text-sm text-gray-600 space-y-1">
-							<p>CHW: <span class="text-gray-900 font-medium">{selectedCase.user?.name || 'Unknown'}</span></p>
-							<p>Reported: <span class="text-gray-900 font-medium">{formatDate(selectedCase.createdAt)}</span></p>
-							<p>Last Updated: <span class="text-gray-900 font-medium">{formatDate(selectedCase.updatedAt)}</span></p>
+							<p>
+								CHW: <span class="text-gray-900 font-medium"
+									>{selectedCase.user?.name || 'Unknown'}</span
+								>
+							</p>
+							<p>
+								Reported: <span class="text-gray-900 font-medium"
+									>{formatDate(selectedCase.createdAt)}</span
+								>
+							</p>
+							<p>
+								Last Updated: <span class="text-gray-900 font-medium"
+									>{formatDate(selectedCase.updatedAt)}</span
+								>
+							</p>
 							{#if selectedCase.forwardedBy}
 								<p>Forwarded By: <span class="text-gray-900 font-medium">ASHA Worker</span></p>
-								<p>Forwarded At: <span class="text-gray-900 font-medium">{formatDate(selectedCase.forwardedAt)}</span></p>
+								<p>
+									Forwarded At: <span class="text-gray-900 font-medium"
+										>{formatDate(selectedCase.forwardedAt)}</span
+									>
+								</p>
 							{/if}
 							{#if selectedCase.closedBy}
-								<p>Closed By: <span class="text-gray-900 font-medium">{selectedCase.closedBy}</span></p>
-								<p>Closed At: <span class="text-gray-900 font-medium">{formatDate(selectedCase.closedAt)}</span></p>
+								<p>
+									Closed By: <span class="text-gray-900 font-medium">{selectedCase.closedBy}</span>
+								</p>
+								<p>
+									Closed At: <span class="text-gray-900 font-medium"
+										>{formatDate(selectedCase.closedAt)}</span
+									>
+								</p>
 							{/if}
 						</div>
 					</div>
