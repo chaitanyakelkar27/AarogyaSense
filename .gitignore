@@ -24,3 +24,8 @@ vite.config.ts.timestamp-*
 
 /../generated/prisma
 PHONE_NUMBERS_EXPLAINED.md
+
+# Database
+prisma/dev.db
+prisma/dev.db-journal
+*.db
