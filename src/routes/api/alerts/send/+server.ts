@@ -4,8 +4,8 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Hardcoded ASHA worker phone number for demo
-const DEMO_ASHA_PHONE = '+9112345678'; // Replace with actua~l demo number (E.164 format: no spaces)
+// Hardcoded ASHA worker phone number for demo (E.164 format with +91 country code)
+const DEMO_ASHA_PHONE = '+918779112231'; // India phone number in E.164 format
 
 export async function POST({ request, locals }: RequestEvent) {
 	try {
@@ -25,13 +25,26 @@ export async function POST({ request, locals }: RequestEvent) {
 		// Use provided ASHA phone or default demo phone
 		const recipientPhone = ashaPhone || DEMO_ASHA_PHONE;
 
+		console.log('[ALERT] Processing alert:', {
+			caseId,
+			riskLevel,
+			priority,
+			recipientPhone,
+			patientName,
+			shouldMakeCall: (riskLevel === 'CRITICAL' || priority >= 5) || (riskLevel === 'HIGH' || priority >= 4)
+		});
+
 		// Determine alert type based on risk level
 		let alertType: 'high_risk' | 'critical_risk' = 'high_risk';
 		let shouldMakeCall = false;
 
+		// Make voice call for HIGH (priority 4) and CRITICAL (priority 5) cases
 		if (riskLevel === 'CRITICAL' || priority >= 5) {
 			alertType = 'critical_risk';
 			shouldMakeCall = true;
+		} else if (riskLevel === 'HIGH' || priority >= 4) {
+			alertType = 'high_risk';
+			shouldMakeCall = true; // Enable calls for HIGH risk too
 		}
 
 		// Format the message
@@ -54,12 +67,18 @@ export async function POST({ request, locals }: RequestEvent) {
 
 		// Make voice call for critical cases
 		if (shouldMakeCall) {
+			console.log('[ALERT] Making voice call to:', recipientPhone);
+
 			const voiceMessage = `Critical health alert. Patient ${patientName} requires immediate medical attention. Risk score is ${riskScore} out of 100. Please check your messages for details.`;
-			
+
 			callResult = await makeVoiceCall({
 				to: recipientPhone,
 				message: voiceMessage
 			});
+
+			console.log('[ALERT] Voice call result:', callResult);
+		} else {
+			console.log('[ALERT] Skipping voice call - risk level not high enough');
 		}
 
 		// Save alert to database

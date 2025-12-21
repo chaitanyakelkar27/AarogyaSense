@@ -1,15 +1,19 @@
 import twilio from 'twilio';
 import { dev } from '$app/environment';
-
-// Twilio credentials - should be in environment variables
-const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID || '';
-const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN || '';
-const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER || '';
+import { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER } from '$env/static/private';
 
 // Initialize Twilio client
 const client = TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN
 	? twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 	: null;
+
+console.log('[TWILIO INIT]', {
+	hasClient: !!client,
+	hasSID: !!TWILIO_ACCOUNT_SID,
+	hasToken: !!TWILIO_AUTH_TOKEN,
+	hasPhone: !!TWILIO_PHONE_NUMBER,
+	sidPrefix: TWILIO_ACCOUNT_SID?.substring(0, 4)
+});
 
 export interface SMSOptions {
 	to: string;
@@ -65,19 +69,43 @@ export async function sendSMS(options: SMSOptions): Promise<AlertResult> {
  * Make voice call with text-to-speech
  */
 export async function makeVoiceCall(options: VoiceCallOptions): Promise<AlertResult> {
+	console.log('[TWILIO] makeVoiceCall called with:', {
+		to: options.to,
+		client: !!client,
+		phoneNumber: TWILIO_PHONE_NUMBER,
+		messageLength: options.message?.length
+	});
+
 	if (!client || !TWILIO_PHONE_NUMBER) {
-		if (dev) {
-			console.log('[TWILIO MOCK] Voice call would be made:', options);
-			return { success: true, messageId: `mock-call-${Date.now()}` };
-		}
-		return { success: false, error: 'Twilio not configured' };
+		console.error('[TWILIO] Client or phone number not configured!', {
+			hasClient: !!client,
+			hasSid: !!TWILIO_ACCOUNT_SID,
+			hasToken: !!TWILIO_AUTH_TOKEN,
+			hasPhone: !!TWILIO_PHONE_NUMBER
+		});
+
+		return { success: false, error: 'Twilio not configured - check .env file' };
 	}
 
 	try {
+		console.log('[TWILIO] Initiating voice call to:', options.to);
+		console.log('[TWILIO] Using phone number:', TWILIO_PHONE_NUMBER);
+		console.log('[TWILIO] Message:', options.message);
+
+		const twimlMessage = `<Response><Say voice="${options.voice || 'alice'}" language="en-IN">${options.message}</Say></Response>`;
+		console.log('[TWILIO] TwiML:', twimlMessage);
+
 		const call = await client.calls.create({
-			twiml: `<Response><Say voice="${options.voice || 'alice'}" language="en-IN">${options.message}</Say></Response>`,
+			twiml: twimlMessage,
 			to: options.to,
 			from: TWILIO_PHONE_NUMBER
+		});
+
+		console.log('[TWILIO] Voice call created successfully:', {
+			sid: call.sid,
+			status: call.status,
+			to: call.to,
+			from: call.from
 		});
 
 		return {
@@ -85,7 +113,7 @@ export async function makeVoiceCall(options: VoiceCallOptions): Promise<AlertRes
 			messageId: call.sid
 		};
 	} catch (error) {
-		console.error('Voice call error:', error);
+		console.error('[TWILIO] Voice call error:', error);
 		return {
 			success: false,
 			error: error instanceof Error ? error.message : 'Unknown error'
@@ -125,16 +153,16 @@ export function formatAlertMessage(
 	switch (type) {
 		case 'case_created':
 			return `New case created for ${data.patientName} by ${data.chwName}. Status: ${data.status}`;
-		
+
 		case 'high_risk':
 			return `HIGH RISK ALERT: Patient ${data.patientName} requires urgent attention. Risk score: ${data.riskScore}/100. Symptoms: ${data.symptoms}`;
-		
+
 		case 'critical_risk':
 			return `CRITICAL ALERT: Patient ${data.patientName} needs IMMEDIATE medical intervention. Risk score: ${data.riskScore}/100. Call ${data.emergencyContact} immediately.`;
-		
+
 		case 'follow_up':
 			return `Follow-up reminder for ${data.patientName}. Scheduled date: ${data.followUpDate}. Contact: ${data.phone}`;
-		
+
 		default:
 			return data.message || 'Health system notification';
 	}
@@ -156,12 +184,12 @@ export function validatePhoneNumber(phone: string): boolean {
 export function formatPhoneNumber(phone: string, countryCode: string = '91'): string {
 	// Remove all non-digit characters
 	const digits = phone.replace(/\D/g, '');
-	
+
 	// If already has country code, return with +
 	if (digits.startsWith(countryCode)) {
 		return `+${digits}`;
 	}
-	
+
 	// Add country code
 	return `+${countryCode}${digits}`;
 }

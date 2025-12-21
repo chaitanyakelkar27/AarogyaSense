@@ -340,20 +340,46 @@
 
 			saveMessage = `✅ Case saved successfully! ID: ${result.id}`;
 
-			// Send alert if high risk
-			if (riskAssessment && (riskAssessment.level === 'HIGH' || riskAssessment.level === 'CRITICAL')) {
-				try {
-					await apiClient.alerts.create({
+		// Send alert if high risk or critical
+		if (riskAssessment && (riskAssessment.level === 'HIGH' || riskAssessment.level === 'CRITICAL')) {
+			try {
+				console.log('[CHW] Sending alert for critical case:', {
+					level: riskAssessment.level,
+					score: riskAssessment.score,
+					priority: riskAssessment.priority
+				});
+
+				const alertResponse = await fetch('/api/alerts/send', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({
 						caseId: result.id,
-						recipientId: $authStore.user?.id || '',
-						level: riskAssessment.level,
-						message: `${riskAssessment.level} RISK: Patient ${patientName} requires attention. Risk score: ${riskAssessment.score}/100`,
-						channels: ['sms']
-					});
-				} catch (alertError) {
-					console.error('Failed to send alert:', alertError);
+						patientName,
+						patientPhone,
+						symptoms: selectedSymptoms,
+						riskLevel: riskAssessment.level,
+						riskScore: riskAssessment.score,
+						priority: riskAssessment.priority,
+						chwName: $authStore.user?.name || 'CHW'
+					})
+				});
+
+				const alertResult = await alertResponse.json();
+				console.log('[CHW] Alert result:', alertResult);
+
+				if (alertResult.success) {
+					if (alertResult.call) {
+						saveMessage = `✅ Case saved & VOICE CALL made! ID: ${result.id}`;
+					} else {
+						saveMessage = `✅ Case saved & SMS sent! ID: ${result.id}`;
+					}
 				}
+			} catch (alertError) {
+				console.error('Failed to send alert:', alertError);
 			}
+		}
 
 			// Refresh case list and reset form after 2 seconds
 			await loadMyCases();

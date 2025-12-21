@@ -22,6 +22,7 @@ export interface RiskAssessment {
 	score: number; // 0-100
 	level: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 	urgency: number; // 1-10
+	priority: number; // 1-5 (1=LOW, 2=MEDIUM, 3-4=HIGH, 5=CRITICAL)
 	factors: string[];
 	recommendations: string[];
 }
@@ -36,7 +37,7 @@ const symptomSeverity: Record<string, number> = {
 	'seizure': 90,
 	'severe headache': 75,
 	'stroke symptoms': 95,
-	
+
 	// High severity (60-79)
 	'high fever': 70,
 	'persistent vomiting': 65,
@@ -45,7 +46,7 @@ const symptomSeverity: Record<string, number> = {
 	'severe weakness': 65,
 	'blood in stool': 70,
 	'blood in urine': 70,
-	
+
 	// Medium severity (40-59)
 	'fever': 50,
 	'cough': 40,
@@ -55,7 +56,7 @@ const symptomSeverity: Record<string, number> = {
 	'rash': 40,
 	'joint pain': 45,
 	'fatigue': 40,
-	
+
 	// Low severity (20-39)
 	'mild fever': 30,
 	'sore throat': 35,
@@ -105,7 +106,7 @@ export function calculateRiskScore(factors: RiskFactors): RiskAssessment {
 	factors.symptoms.forEach(symptom => {
 		const severity = symptomSeverity[symptom.toLowerCase()] || 30;
 		symptomScore = Math.max(symptomScore, severity);
-		
+
 		if (severity >= 70) {
 			riskFactors.push(`Critical symptom: ${symptom}`);
 		}
@@ -115,7 +116,7 @@ export function calculateRiskScore(factors: RiskFactors): RiskAssessment {
 	// 2. Vital signs risk (30% weight)
 	if (factors.vitalSigns) {
 		let vitalScore = 0;
-		
+
 		if (factors.vitalSigns.temperature) {
 			const temp = factors.vitalSigns.temperature;
 			if (vitalSignsRisk.temperature.critical(temp)) {
@@ -127,7 +128,7 @@ export function calculateRiskScore(factors: RiskFactors): RiskAssessment {
 				riskFactors.push('Abnormal temperature');
 			}
 		}
-		
+
 		if (factors.vitalSigns.heartRate) {
 			const hr = factors.vitalSigns.heartRate;
 			if (vitalSignsRisk.heartRate.critical(hr)) {
@@ -139,7 +140,7 @@ export function calculateRiskScore(factors: RiskFactors): RiskAssessment {
 				riskFactors.push('Abnormal heart rate');
 			}
 		}
-		
+
 		if (factors.vitalSigns.oxygenSaturation) {
 			const spo2 = factors.vitalSigns.oxygenSaturation;
 			if (vitalSignsRisk.oxygenSaturation.critical(spo2)) {
@@ -151,7 +152,7 @@ export function calculateRiskScore(factors: RiskFactors): RiskAssessment {
 				riskFactors.push('Low oxygen saturation');
 			}
 		}
-		
+
 		if (factors.vitalSigns.respiratoryRate) {
 			const rr = factors.vitalSigns.respiratoryRate;
 			if (vitalSignsRisk.respiratoryRate.critical(rr)) {
@@ -163,7 +164,7 @@ export function calculateRiskScore(factors: RiskFactors): RiskAssessment {
 				riskFactors.push('Abnormal respiratory rate');
 			}
 		}
-		
+
 		score += vitalScore * 0.3;
 	}
 
@@ -190,8 +191,8 @@ export function calculateRiskScore(factors: RiskFactors): RiskAssessment {
 	// 5. AI confidence (10% weight)
 	if (factors.aiConfidence && factors.aiPrediction) {
 		if (factors.aiConfidence > 0.8) {
-			const aiRisk = factors.aiPrediction.toLowerCase().includes('critical') ? 30 : 
-						   factors.aiPrediction.toLowerCase().includes('high') ? 20 : 10;
+			const aiRisk = factors.aiPrediction.toLowerCase().includes('critical') ? 30 :
+				factors.aiPrediction.toLowerCase().includes('high') ? 20 : 10;
 			score += aiRisk;
 			riskFactors.push(`AI prediction: ${factors.aiPrediction} (${(factors.aiConfidence * 100).toFixed(1)}% confidence)`);
 		}
@@ -203,22 +204,27 @@ export function calculateRiskScore(factors: RiskFactors): RiskAssessment {
 	// Determine risk level
 	let level: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 	let urgency: number;
-	
+	let priority: number;
+
 	if (score >= 80) {
 		level = 'CRITICAL';
 		urgency = 10;
+		priority = 5;
 		recommendations.unshift('URGENT: Immediate hospital transfer required');
 	} else if (score >= 60) {
 		level = 'HIGH';
 		urgency = 7;
+		priority = 4;
 		recommendations.unshift('High priority: Medical consultation within 24 hours');
 	} else if (score >= 40) {
 		level = 'MEDIUM';
 		urgency = 5;
+		priority = 2;
 		recommendations.unshift('Monitor closely and follow up in 2-3 days');
 	} else {
 		level = 'LOW';
 		urgency = 3;
+		priority = 1;
 		recommendations.unshift('Standard care and follow-up as needed');
 	}
 
@@ -232,6 +238,7 @@ export function calculateRiskScore(factors: RiskFactors): RiskAssessment {
 		score,
 		level,
 		urgency,
+		priority,
 		factors: riskFactors,
 		recommendations
 	};
