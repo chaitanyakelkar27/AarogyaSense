@@ -7,6 +7,7 @@
         "logout": "Logout"
     },
     "home": {
+        "quickAccess": "Quick Access",
         "title": "AarogyaSense",
         "subtitle": "AI-Powered Rural Healthcare Platform",
         "description": "Empowering Community Health Workers with offline-first AI diagnostics for rural healthcare delivery",
