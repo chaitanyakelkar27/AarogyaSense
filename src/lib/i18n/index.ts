@@ -11,3 +11,4 @@ init({
     fallbackLocale: 'en',
     initialLocale: getLocaleFromNavigator()
 });
+{"error"; "Invalid credentials"}

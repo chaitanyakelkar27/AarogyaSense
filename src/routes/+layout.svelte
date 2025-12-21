@@ -3,6 +3,8 @@
 	import '$lib/i18n';
 	import { authStore } from '$lib/stores/auth-store';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
+	import { fade, fly } from 'svelte/transition';
 	import { _, locale } from 'svelte-i18n';
 	import LanguageSwitcher from '$lib/components/LanguageSwitcher.svelte';
 
@@ -70,13 +72,13 @@
 </script>
 
 <div class="flex min-h-screen flex-col">
-	<header class="sticky top-0 z-40 border-b border-border/60 bg-surface/70 backdrop-blur">
-		<div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-			<a href="/" class="group flex items-center gap-3" onclick={closeMenu}>
+	<header class="sticky top-0 z-40 w-full border-b border-border/40 bg-surface/80 backdrop-blur-md supports-[backdrop-filter]:bg-surface/60">
+		<div class="flex h-16 w-full items-center justify-between px-4 sm:px-8">
+			<a href="/" class="flex items-center gap-3" onclick={closeMenu}>
 				<div
-					class="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand text-brand-foreground shadow-brand transition-transform group-hover:rotate-3"
+					class="flex h-9 w-9 items-center justify-center rounded-lg bg-brand text-brand-foreground shadow-sm"
 				>
-					<svg class="h-7 w-7" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+					<svg class="h-5 w-5" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
 						<path
 							d="M10 23.5C10 16.043 15.9102 10 23.1341 10C30.358 10 36.2683 16.043 36.2683 23.5C36.2683 30.957 30.358 37 23.1341 37C20.6317 37 18.2621 36.2849 16.2042 35.0258L10 37.5L11.9477 31.4135C10.691 29.1828 10 26.4589 10 23.5Z"
 							fill="currentColor"
@@ -84,17 +86,14 @@
 						<path
 							d="M26.75 16.75C30.0637 16.75 32.75 19.4363 32.75 22.75C32.75 26.0637 30.0637 28.75 26.75 28.75"
 							stroke="hsl(var(--color-brand-foreground))"
-							stroke-width="2.4"
+							stroke-width="3"
 							stroke-linecap="round"
 						/>
 					</svg>
 				</div>
-				<div class="flex flex-col">
-					<span class="text-sm uppercase tracking-[0.3em] text-muted">AarogyaSense</span>
-					<span class="font-display text-lg text-surface-emphasis">AI Community Health</span>
-				</div>
+				<span class="font-display text-lg font-semibold tracking-tight text-surface-emphasis">AarogyaSense</span>
 			</a>
-			<nav class="hidden items-center gap-8 lg:flex">
+			<nav class="hidden items-center gap-6 lg:flex">
 				{#each navItems() as item}
 					<a
 						href={item.href}
@@ -193,8 +192,12 @@
 			</div>
 		{/if}
 	</header>
-	<main class="flex-1">
-		{@render children()}
+	<main class="flex-1 relative">
+		{#key $page.url.pathname}
+			<div in:fly={{ y: 20, duration: 400, delay: 200 }} out:fade={{ duration: 200 }} class="min-h-full">
+				{@render children()}
+			</div>
+		{/key}
 	</main>
 	<footer class="border-t border-border/60 bg-surface/80">
 		<div class="mx-auto grid max-w-6xl gap-8 px-6 py-12 md:grid-cols-2 lg:grid-cols-4">

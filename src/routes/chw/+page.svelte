@@ -544,8 +544,8 @@
 </script>
 
 {#if unauthorized}
-	<div class="flex min-h-screen items-center justify-center bg-gray-50 p-4">
-		<div class="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
+	<div class="flex min-h-screen items-center justify-center bg-background p-4">
+		<div class="max-w-md w-full bg-surface rounded-lg shadow-lg p-8 text-center">
 			<div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
 				<svg class="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path
@@ -556,27 +556,28 @@
 					/>
 				</svg>
 			</div>
-			<h2 class="text-2xl font-bold text-gray-900 mb-3">Access Denied</h2>
-			<p class="text-gray-600 mb-6">You don't have permission to access this page.</p>
+			<h2 class="text-2xl font-bold text-surface-emphasis mb-3">Access Denied</h2>
+			<p class="text-muted mb-6">You don't have permission to access this page.</p>
 			<a
 				href="/"
-				class="block w-full bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors"
+				class="block w-full bg-brand text-white px-6 py-3 rounded-lg font-semibold hover:bg-brand/90 transition-colors"
 			>
 				Return to Home
 			</a>
 		</div>
 	</div>
 {:else}
-	<div class="min-h-screen bg-gray-50">
+	<div class="min-h-screen bg-background">
 		<!-- Header -->
-		<header class="bg-white shadow-sm border-b">
-			<div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+		<header class="bg-surface shadow-sm border-b border-border/50 sticky top-0 z-50 backdrop-blur-md bg-surface/90">
+			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
 				<div class="flex items-center gap-4">
 					<a
 						href="/"
-						class="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center hover:bg-green-700 transition-colors"
+						aria-label="Home"
+						class="w-10 h-10 bg-brand rounded-xl flex items-center justify-center hover:bg-brand/90 transition-all shadow-sm hover:shadow-brand/20"
 					>
-						<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<svg class="w-6 h-6 text-brand-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path
 								stroke-linecap="round"
 								stroke-linejoin="round"
@@ -586,58 +587,67 @@
 						</svg>
 					</a>
 					<div>
-						<h1 class="text-xl font-bold text-gray-900">{$_('chw.aiHealthAssessment')}</h1>
-						<p class="text-sm text-gray-600">{$_('chw.intelligentSupport')}</p>
+						<h1 class="text-xl font-bold text-surface-emphasis">{$_('chw.aiHealthAssessment')}</h1>
+						<p class="text-sm text-muted">{$_('chw.intelligentSupport')}</p>
 					</div>
 				</div>
-				<div class="text-sm text-gray-600">
-					CHW: {$authStore.user?.name}
+				<div class="flex items-center gap-3">
+					<div class="hidden md:block text-right">
+						<p class="text-sm font-bold text-surface-emphasis">{$authStore.user?.name}</p>
+						<p class="text-xs text-muted">Community Health Worker</p>
+					</div>
+					<div class="h-10 w-10 rounded-full bg-brand/10 flex items-center justify-center text-brand font-bold border border-brand/20">
+						{$authStore.user?.name?.charAt(0) || 'C'}
+					</div>
 				</div>
 			</div>
 		</header>
 
-		<div class="max-w-5xl mx-auto p-4 py-8">
+		<div class="max-w-7xl mx-auto p-4 py-8">
 			{#if showPatientForm}
 				<!-- Patient Information Form -->
-				<div class="bg-white rounded-lg shadow-lg p-8">
-					<h2 class="text-2xl font-bold text-gray-900 mb-6">Patient Information</h2>
+				<div class="bg-surface rounded-xl shadow-sm border border-border/50 p-8">
+					<h2 class="text-2xl font-bold text-surface-emphasis mb-6">Patient Information</h2>
 
-					<div class="space-y-4">
-						<div class="grid grid-cols-2 gap-4">
+					<div class="space-y-6">
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 							<div>
-								<label class="block text-sm font-medium text-gray-700 mb-2"
+								<label for="patientName" class="block text-sm font-medium text-surface-emphasis mb-2"
 									>{$_('chw.patientName')} *</label
 								>
 								<input
+									id="patientName"
 									type="text"
 									bind:value={patientName}
 									placeholder={$_('chw.patientNamePlaceholder')}
-									class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+									class="w-full px-4 py-3 bg-surface-soft border border-border rounded-lg focus:ring-2 focus:ring-brand focus:border-transparent transition-all"
 								/>
 							</div>
 
 							<div>
-								<label class="block text-sm font-medium text-gray-700 mb-2">{$_('chw.age')} *</label
+								<label for="patientAge" class="block text-sm font-medium text-surface-emphasis mb-2">{$_('chw.age')} *</label
 								>
 								<input
+									id="patientAge"
 									type="number"
 									bind:value={patientAge}
 									placeholder={$_('chw.agePlaceholder')}
 									min="0"
 									max="120"
-									class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+									class="w-full px-4 py-3 bg-surface-soft border border-border rounded-lg focus:ring-2 focus:ring-brand focus:border-transparent transition-all"
 								/>
 							</div>
 						</div>
 
-						<div class="grid grid-cols-2 gap-4">
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 							<div>
-								<label class="block text-sm font-medium text-gray-700 mb-2"
+								<label for="patientGender" class="block text-sm font-medium text-surface-emphasis mb-2"
 									>{$_('chw.gender')} *</label
 								>
 								<select
+									id="patientGender"
 									bind:value={patientGender}
-									class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+									class="w-full px-4 py-3 bg-surface-soft border border-border rounded-lg focus:ring-2 focus:ring-brand focus:border-transparent transition-all"
 								>
 									<option value="MALE">{$_('chw.male')}</option>
 									<option value="FEMALE">{$_('chw.female')}</option>
@@ -646,36 +656,38 @@
 							</div>
 
 							<div>
-								<label class="block text-sm font-medium text-gray-700 mb-2"
+								<label for="patientPhone" class="block text-sm font-medium text-surface-emphasis mb-2"
 									>{$_('chw.phoneNumber')}</label
 								>
 								<input
+									id="patientPhone"
 									type="tel"
 									bind:value={patientPhone}
 									placeholder={$_('chw.phoneNumberPlaceholder')}
-									class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+									class="w-full px-4 py-3 bg-surface-soft border border-border rounded-lg focus:ring-2 focus:ring-brand focus:border-transparent transition-all"
 								/>
 							</div>
 						</div>
 
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-2">{$_('chw.village')}</label
+							<label for="patientVillage" class="block text-sm font-medium text-surface-emphasis mb-2">{$_('chw.village')}</label
 							>
 							<input
+								id="patientVillage"
 								type="text"
 								bind:value={patientVillage}
 								placeholder={$_('chw.villagePlaceholder')}
-								class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+								class="w-full px-4 py-3 bg-surface-soft border border-border rounded-lg focus:ring-2 focus:ring-brand focus:border-transparent transition-all"
 							/>
 						</div>
 
 						<!-- Image Upload -->
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-2"
+							<label for="image-upload" class="block text-sm font-medium text-surface-emphasis mb-2"
 								>{$_('chw.imageUploadLabel')} ({$_('chw.optional')})</label
 							>
 							<div
-								class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-green-500 transition-colors"
+								class="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-brand transition-colors bg-surface-soft/30"
 							>
 								<input
 									type="file"
@@ -687,7 +699,7 @@
 								/>
 								<label for="image-upload" class="cursor-pointer">
 									<svg
-										class="w-12 h-12 text-gray-400 mx-auto mb-2"
+										class="w-12 h-12 text-muted mx-auto mb-2"
 										fill="none"
 										stroke="currentColor"
 										viewBox="0 0 24 24"
@@ -699,8 +711,8 @@
 											d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
 										/>
 									</svg>
-									<p class="text-sm text-gray-600">{$_('chw.patientInfo')}</p>
-									<p class="text-xs text-gray-500 mt-1">{$_('chw.patientInfo')}</p>
+									<p class="text-sm text-muted">{$_('chw.patientInfo')}</p>
+									<p class="text-xs text-muted mt-1">{$_('chw.patientInfo')}</p>
 								</label>
 
 								{#if uploadedImages.length > 0}
@@ -714,7 +726,8 @@
 												/>
 												<button
 													onclick={() => removeImage(index)}
-													class="absolute top-2 right-2 bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+													aria-label="Remove image"
+													class="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
 												>
 													<svg
 														class="w-4 h-4"
@@ -739,15 +752,15 @@
 
 						<!-- Voice Recording -->
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-2"
-								>{$_('chw.voiceNote')} ({$_('chw.optional')})</label
+							<p class="block text-sm font-medium text-surface-emphasis mb-2"
+								>{$_('chw.voiceNote')} ({$_('chw.optional')})</p
 							>
-							<div class="border border-gray-300 rounded-lg p-4">
+							<div class="border border-border rounded-lg p-4">
 								{#if !audioRecording}
 									{#if !isRecording}
 										<button
 											onclick={startRecording}
-											class="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+											class="w-full bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
 										>
 											<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 												<path
@@ -759,7 +772,7 @@
 											</svg>
 											{$_('chw.recordVoice')}
 										</button>
-										<p class="text-xs text-gray-500 mt-2 text-center">{$_('chw.voiceHelp')}</p>
+										<p class="text-xs text-muted mt-2 text-center">{$_('chw.voiceHelp')}</p>
 									{:else}
 										<button
 											onclick={stopRecording}
@@ -770,10 +783,10 @@
 										</button>
 									{/if}
 								{:else}
-									<div class="flex items-center justify-between bg-green-50 p-3 rounded-lg">
+									<div class="flex items-center justify-between bg-green-500/10 p-3 rounded-lg">
 										<div class="flex items-center gap-3">
 											<svg
-												class="w-8 h-8 text-green-600"
+												class="w-8 h-8 text-brand"
 												fill="none"
 												stroke="currentColor"
 												viewBox="0 0 24 24"
@@ -786,11 +799,11 @@
 												/>
 											</svg>
 											<div>
-												<p class="font-medium text-gray-900">{$_('chw.voiceCaptured')}</p>
+												<p class="font-medium text-surface-emphasis">{$_('chw.voiceCaptured')}</p>
 												<audio controls src={audioRecording.url} class="mt-2 h-8"></audio>
 											</div>
 										</div>
-										<button onclick={removeAudio} class="text-red-600 hover:text-red-700">
+										<button onclick={removeAudio} aria-label="Remove audio" class="text-red-600 hover:text-red-700">
 											<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 												<path
 													stroke-linecap="round"
@@ -806,33 +819,33 @@
 						</div>
 
 						<!-- Nearby ASHA Workers Info -->
-						<div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-							<h3 class="font-medium text-blue-900 mb-2">{$_('chw.nearbyAshaWorkers')}</h3>
+						<div class="bg-blue-500/10 border border-blue-200 rounded-lg p-4">
+							<h3 class="font-medium text-blue-700 mb-2">{$_('chw.nearbyAshaWorkers')}</h3>
 							<div class="space-y-2">
 								{#each nearbyAshaWorkers as worker}
 									<div class="flex justify-between text-sm">
-										<span class="text-blue-900">{worker.name}</span>
-										<span class="text-blue-600">{worker.location}</span>
+										<span class="text-blue-700">{worker.name}</span>
+										<span class="text-blue-500">{worker.location}</span>
 									</div>
 								{/each}
 							</div>
-							<p class="text-xs text-blue-700 mt-2">{$_('chw.highRiskAlert')}</p>
+							<p class="text-xs text-blue-600 mt-2">{$_('chw.highRiskAlert')}</p>
 						</div>
 					</div>
 
 					<button
 						onclick={startDiagnosis}
 						disabled={!patientName || !patientAge || !patientGender}
-						class="w-full mt-6 bg-green-600 text-white px-6 py-4 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
+						class="w-full mt-6 bg-brand text-white px-6 py-4 rounded-lg font-semibold hover:bg-brand/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
 					>
 						{$_('chw.startAssessment')}
 					</button>
 				</div>
 			{:else if !diagnosisComplete}
 				<!-- Chat Interface -->
-				<div class="bg-white rounded-lg shadow-lg overflow-hidden">
+				<div class="bg-surface rounded-lg shadow-lg overflow-hidden">
 					<!-- Chat Header -->
-					<div class="bg-green-600 text-white p-6">
+					<div class="bg-brand text-white p-6">
 						<div class="flex items-center justify-between">
 							<div>
 								<h3 class="font-bold text-lg">AI Health Assistant</h3>
@@ -848,21 +861,21 @@
 					</div>
 
 					<!-- Chat Messages -->
-					<div id="chat-container" class="h-[500px] overflow-y-auto p-6 space-y-4 bg-gray-50">
+					<div id="chat-container" class="h-[500px] overflow-y-auto p-6 space-y-4 bg-background">
 						{#each messages as message}
 							<div class="flex {message.role === 'ai' ? 'justify-start' : 'justify-end'}">
 								<div
 									class="max-w-[80%] {message.role === 'ai'
-										? 'bg-white border border-gray-200'
-										: 'bg-green-600 text-white'} rounded-lg p-4 shadow-sm"
+										? 'bg-surface border border-border'
+										: 'bg-brand text-white'} rounded-lg p-4 shadow-sm"
 								>
 									{#if message.role === 'ai'}
 										<div class="flex items-start gap-3">
 											<div
-												class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0"
+												class="w-8 h-8 bg-brand/10 rounded-full flex items-center justify-center flex-shrink-0"
 											>
 												<svg
-													class="w-5 h-5 text-green-600"
+													class="w-5 h-5 text-brand"
 													fill="none"
 													stroke="currentColor"
 													viewBox="0 0 24 24"
@@ -876,8 +889,8 @@
 												</svg>
 											</div>
 											<div class="flex-1">
-												<p class="text-sm font-medium text-gray-900 mb-1">AI Assistant</p>
-												<p class="text-gray-700 whitespace-pre-wrap">{message.text}</p>
+												<p class="text-sm font-medium text-surface-emphasis mb-1">AI Assistant</p>
+												<p class="text-surface-emphasis whitespace-pre-wrap">{message.text}</p>
 											</div>
 										</div>
 									{:else}
@@ -889,20 +902,20 @@
 
 						{#if aiThinking}
 							<div class="flex justify-start">
-								<div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+								<div class="bg-surface border border-border rounded-lg p-4 shadow-sm">
 									<div class="flex items-center gap-2">
 										<div class="flex gap-1">
-											<div class="w-2 h-2 bg-green-600 rounded-full animate-bounce"></div>
+											<div class="w-2 h-2 bg-brand rounded-full animate-bounce"></div>
 											<div
-												class="w-2 h-2 bg-green-600 rounded-full animate-bounce"
+												class="w-2 h-2 bg-brand rounded-full animate-bounce"
 												style="animation-delay: 0.2s"
 											></div>
 											<div
-												class="w-2 h-2 bg-green-600 rounded-full animate-bounce"
+												class="w-2 h-2 bg-brand rounded-full animate-bounce"
 												style="animation-delay: 0.4s"
 											></div>
 										</div>
-										<span class="text-sm text-gray-600">AI is thinking...</span>
+										<span class="text-sm text-muted">AI is thinking...</span>
 									</div>
 								</div>
 							</div>
@@ -910,9 +923,9 @@
 					</div>
 
 					<!-- Input Area -->
-					<div class="border-t p-4 bg-white">
+					<div class="border-t p-4 bg-surface">
 						{#if setupError}
-							<div class="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+							<div class="mb-4 bg-red-500/10 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
 								<p class="font-medium">Configuration Error</p>
 								<p class="text-sm">{setupError}</p>
 							</div>
@@ -927,12 +940,12 @@
 								placeholder={awaitingResponse
 									? 'Type your response...'
 									: 'Please wait for AI question...'}
-								class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-100"
+								class="flex-1 px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-brand focus:border-transparent disabled:bg-surface-soft"
 							/>
 							<button
 								onclick={handleSendMessage}
 								disabled={!awaitingResponse || aiThinking || !userInput.trim()}
-								class="bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+								class="bg-brand text-white px-6 py-3 rounded-lg font-medium hover:bg-brand/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
 							>
 								Send
 							</button>
@@ -943,10 +956,10 @@
 				<!-- Diagnosis Result -->
 				<div class="space-y-6">
 					<!-- FEATURED: Recommendations Card - MOST IMPORTANT -->
-					<div class="bg-white border-2 border-green-600 rounded-lg shadow-lg p-6">
+					<div class="bg-surface border-2 border-brand rounded-lg shadow-lg p-6">
 						<div class="flex items-start gap-4 mb-4">
 							<div
-								class="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center flex-shrink-0"
+								class="w-12 h-12 bg-brand rounded-lg flex items-center justify-center flex-shrink-0"
 							>
 								<svg
 									class="w-7 h-7 text-white"
@@ -963,20 +976,20 @@
 								</svg>
 							</div>
 							<div class="flex-1">
-								<h2 class="text-xl font-bold text-gray-900 mb-1">Recommended Action</h2>
-								<p class="text-sm text-gray-600">What you should do for this patient</p>
+								<h2 class="text-xl font-bold text-surface-emphasis mb-1">Recommended Action</h2>
+								<p class="text-sm text-muted">What you should do for this patient</p>
 							</div>
 						</div>
 
-						<div class="bg-green-50 border-l-4 border-green-600 rounded p-5">
-							<p class="text-base leading-relaxed text-gray-900">
+						<div class="bg-brand/5 border-l-4 border-brand rounded p-5">
+							<p class="text-base leading-relaxed text-surface-emphasis">
 								{diagnosisResult.recommendations}
 							</p>
 						</div>
 
 						{#if diagnosisResult.needsEscalation}
 							<div
-								class="mt-4 bg-orange-50 border-l-4 border-orange-500 rounded p-4 flex items-start gap-3"
+								class="mt-4 bg-orange-500/10 border-l-4 border-orange-500 rounded p-4 flex items-start gap-3"
 							>
 								<svg
 									class="w-6 h-6 flex-shrink-0 text-orange-600"
@@ -989,8 +1002,8 @@
 									/>
 								</svg>
 								<div>
-									<p class="font-semibold text-orange-900 mb-1">Escalation Required</p>
-									<p class="text-sm text-orange-800">
+									<p class="font-semibold text-orange-700 mb-1">Escalation Required</p>
+									<p class="text-sm text-orange-600">
 										This case will be automatically forwarded to <span class="font-semibold"
 											>{diagnosisResult.escalateTo}</span
 										> for review
@@ -1001,10 +1014,10 @@
 					</div>
 
 					<!-- Risk Assessment -->
-					<div class="bg-white rounded-lg shadow-lg p-6">
-						<h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+					<div class="bg-surface rounded-lg shadow-lg p-6">
+						<h3 class="text-lg font-bold text-surface-emphasis mb-4 flex items-center gap-2">
 							<svg
-								class="w-5 h-5 text-gray-600"
+								class="w-5 h-5 text-muted"
 								fill="none"
 								stroke="currentColor"
 								viewBox="0 0 24 24"
@@ -1023,50 +1036,50 @@
 							<!-- Risk Level -->
 							<div
 								class="border-2 rounded-lg p-4 text-center
-								{diagnosisResult.riskLevel === 'CRITICAL' ? 'border-red-600 bg-red-50' : ''}
-								{diagnosisResult.riskLevel === 'HIGH' ? 'border-orange-500 bg-orange-50' : ''}
-								{diagnosisResult.riskLevel === 'MEDIUM' ? 'border-yellow-500 bg-yellow-50' : ''}
-								{diagnosisResult.riskLevel === 'LOW' ? 'border-green-600 bg-green-50' : ''}"
+								{diagnosisResult.riskLevel === 'CRITICAL' ? 'border-red-600 bg-red-500/10' : ''}
+								{diagnosisResult.riskLevel === 'HIGH' ? 'border-orange-500 bg-orange-500/10' : ''}
+								{diagnosisResult.riskLevel === 'MEDIUM' ? 'border-yellow-500 bg-yellow-500/10' : ''}
+								{diagnosisResult.riskLevel === 'LOW' ? 'border-brand bg-brand/5' : ''}"
 							>
-								<p class="text-xs text-gray-600 mb-1">Risk Level</p>
+								<p class="text-xs text-muted mb-1">Risk Level</p>
 								<p
 									class="text-xl font-bold
 									{diagnosisResult.riskLevel === 'CRITICAL' ? 'text-red-600' : ''}
 									{diagnosisResult.riskLevel === 'HIGH' ? 'text-orange-600' : ''}
 									{diagnosisResult.riskLevel === 'MEDIUM' ? 'text-yellow-600' : ''}
-									{diagnosisResult.riskLevel === 'LOW' ? 'text-green-600' : ''}"
+									{diagnosisResult.riskLevel === 'LOW' ? 'text-brand' : ''}"
 								>
 									{diagnosisResult.riskLevel}
 								</p>
 							</div>
 
 							<!-- Risk Score -->
-							<div class="border-2 border-gray-300 bg-gray-50 rounded-lg p-4 text-center">
-								<p class="text-xs text-gray-600 mb-1">Risk Score</p>
-								<p class="text-2xl font-bold text-gray-900">
-									{diagnosisResult.riskScore}<span class="text-sm text-gray-500">/100</span>
+							<div class="border-2 border-border bg-surface-soft rounded-lg p-4 text-center">
+								<p class="text-xs text-muted mb-1">Risk Score</p>
+								<p class="text-2xl font-bold text-surface-emphasis">
+									{diagnosisResult.riskScore}<span class="text-sm text-muted">/100</span>
 								</p>
 							</div>
 
 							<!-- Priority -->
-							<div class="border-2 border-gray-300 bg-gray-50 rounded-lg p-4 text-center">
-								<p class="text-xs text-gray-600 mb-1">Priority</p>
-								<p class="text-2xl font-bold text-gray-900">
-									{diagnosisResult.priority}<span class="text-sm text-gray-500">/5</span>
+							<div class="border-2 border-border bg-surface-soft rounded-lg p-4 text-center">
+								<p class="text-xs text-muted mb-1">Priority</p>
+								<p class="text-2xl font-bold text-surface-emphasis">
+									{diagnosisResult.priority}<span class="text-sm text-muted">/5</span>
 								</p>
 							</div>
 						</div>
 
 						<!-- Progress Bar -->
-						<div class="bg-gray-100 rounded-lg p-3">
-							<p class="text-xs font-medium text-gray-600 mb-2">Risk Severity Indicator</p>
-							<div class="w-full bg-gray-300 rounded-full h-4 overflow-hidden">
+						<div class="bg-surface-soft rounded-lg p-3">
+							<p class="text-xs font-medium text-muted mb-2">Risk Severity Indicator</p>
+							<div class="w-full bg-border rounded-full h-4 overflow-hidden">
 								<div
 									class="h-full rounded-full transition-all duration-1000 flex items-center justify-end pr-2
 									{diagnosisResult.riskLevel === 'CRITICAL' ? 'bg-red-600' : ''}
 									{diagnosisResult.riskLevel === 'HIGH' ? 'bg-orange-500' : ''}
 									{diagnosisResult.riskLevel === 'MEDIUM' ? 'bg-yellow-500' : ''}
-									{diagnosisResult.riskLevel === 'LOW' ? 'bg-green-600' : ''}"
+									{diagnosisResult.riskLevel === 'LOW' ? 'bg-brand' : ''}"
 									style="width: {diagnosisResult.riskScore}%"
 								>
 									<span class="text-white text-xs font-semibold">{diagnosisResult.riskScore}%</span>
@@ -1076,10 +1089,10 @@
 					</div>
 
 					<!-- Symptoms -->
-					<div class="bg-white rounded-lg shadow-lg p-6">
-						<h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+					<div class="bg-surface rounded-lg shadow-lg p-6">
+						<h3 class="text-lg font-bold text-surface-emphasis mb-4 flex items-center gap-2">
 							<svg
-								class="w-5 h-5 text-gray-600"
+								class="w-5 h-5 text-muted"
 								fill="none"
 								stroke="currentColor"
 								viewBox="0 0 24 24"
@@ -1096,7 +1109,7 @@
 						<div class="flex flex-wrap gap-2">
 							{#each diagnosisResult.symptoms as symptom}
 								<span
-									class="inline-flex items-center bg-gray-100 text-gray-800 px-3 py-1.5 rounded-md text-sm font-medium border border-gray-300"
+									class="inline-flex items-center bg-surface-soft text-surface-emphasis px-3 py-1.5 rounded-md text-sm font-medium border border-border"
 								>
 									{symptom}
 								</span>
@@ -1106,10 +1119,10 @@
 
 					<!-- Possible Diagnosis -->
 					{#if diagnosisResult.possibleDiagnosis && diagnosisResult.possibleDiagnosis.trim()}
-						<div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-blue-500">
-							<h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+						<div class="bg-surface rounded-lg shadow-lg p-6 border-l-4 border-blue-500">
+							<h3 class="text-lg font-bold text-surface-emphasis mb-4 flex items-center gap-2">
 								<svg
-									class="w-5 h-5 text-blue-600"
+									class="w-5 h-5 text-blue-500"
 									fill="none"
 									stroke="currentColor"
 									viewBox="0 0 24 24"
@@ -1123,8 +1136,8 @@
 								</svg>
 								Possible Diagnosis
 							</h3>
-							<div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-								<p class="text-gray-800 leading-relaxed font-medium">
+							<div class="bg-blue-500/10 border border-blue-200 rounded-lg p-4">
+								<p class="text-surface-emphasis leading-relaxed font-medium">
 									{@html formatDiagnosisHTML(diagnosisResult.possibleDiagnosis)}
 								</p>
 							</div>
@@ -1133,10 +1146,10 @@
 
 					<!-- Assessment Summary -->
 					{#if diagnosisResult.summary && diagnosisResult.summary.trim() && diagnosisResult.summary.length >= 30 && !/^(based on|according to|here is|thank you)/i.test(diagnosisResult.summary.trim())}
-						<div class="bg-white rounded-lg shadow-lg p-6">
-							<h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+						<div class="bg-surface rounded-lg shadow-lg p-6">
+							<h3 class="text-lg font-bold text-surface-emphasis mb-4 flex items-center gap-2">
 								<svg
-									class="w-5 h-5 text-gray-600"
+									class="w-5 h-5 text-muted"
 									fill="none"
 									stroke="currentColor"
 									viewBox="0 0 24 24"
@@ -1150,18 +1163,18 @@
 								</svg>
 								Assessment Details
 							</h3>
-							<div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-								<p class="text-gray-700 leading-relaxed">{diagnosisResult.summary}</p>
+							<div class="bg-surface-soft border border-border rounded-lg p-4">
+								<p class="text-surface-emphasis leading-relaxed">{diagnosisResult.summary}</p>
 							</div>
 						</div>
 					{/if}
 
 					<!-- Media Attachments -->
 					{#if uploadedImages.length > 0 || audioRecording}
-						<div class="bg-white rounded-lg shadow-lg p-6">
-							<h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+						<div class="bg-surface rounded-lg shadow-lg p-6">
+							<h3 class="text-lg font-bold text-surface-emphasis mb-4 flex items-center gap-2">
 								<svg
-									class="w-5 h-5 text-gray-600"
+									class="w-5 h-5 text-muted"
 									fill="none"
 									stroke="currentColor"
 									viewBox="0 0 24 24"
@@ -1178,7 +1191,7 @@
 
 							{#if uploadedImages.length > 0}
 								<div class="mb-4">
-									<p class="text-sm font-medium text-gray-700 mb-3">
+									<p class="text-sm font-medium text-surface-emphasis mb-3">
 										Patient Images ({uploadedImages.length})
 									</p>
 									<div class="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -1186,7 +1199,7 @@
 											<img
 												src={image.url}
 												alt="Patient"
-												class="w-full h-28 object-cover rounded-lg border border-gray-300"
+												class="w-full h-28 object-cover rounded-lg border border-border"
 											/>
 										{/each}
 									</div>
@@ -1195,7 +1208,7 @@
 
 							{#if audioRecording}
 								<div>
-									<p class="text-sm font-medium text-gray-700 mb-3">Voice Recording</p>
+									<p class="text-sm font-medium text-surface-emphasis mb-3">Voice Recording</p>
 									<audio controls src={audioRecording.url} class="w-full"></audio>
 								</div>
 							{/if}
@@ -1203,12 +1216,12 @@
 					{/if}
 
 					<!-- Action Buttons -->
-					<div class="bg-white rounded-lg shadow-lg p-6">
+					<div class="bg-surface rounded-lg shadow-lg p-6">
 						<div class="flex flex-col sm:flex-row gap-3">
 							<button
 								onclick={submitCase}
 								disabled={submitting}
-								class="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+								class="flex-1 bg-brand text-white px-6 py-3 rounded-lg font-semibold hover:bg-brand/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
 							>
 								{#if submitting}
 									<svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
@@ -1241,7 +1254,7 @@
 							</button>
 							<button
 								onclick={resetForm}
-								class="px-6 py-3 border-2 border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+								class="px-6 py-3 border-2 border-border rounded-lg font-semibold text-surface-emphasis hover:bg-surface-soft transition-colors flex items-center justify-center gap-2"
 							>
 								<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path
