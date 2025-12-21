@@ -30,24 +30,24 @@ AarogyaSense is a comprehensive AI-powered healthcare platform designed specific
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    USER INTERFACES                              │
-│  CHW Mobile App  │  ASHA Dashboard  │  Clinician Portal        │
-│  (Offline-First) │  (Case Review)   │  (Diagnosis & Treatment) │
+│  CHW Mobile App  │  ASHA Dashboard  │  Clinician Portal         │
+│  (Offline-First) │  (Case Review)   │  (Diagnosis & Treatment)  │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │                   EDGE AI LAYER                                 │
-│  • TensorFlow.js Local Inference                               │
-│  • Image Analysis (Anemia, Skin Conditions)                    │
+│  • TensorFlow.js Local Inference                                │
+│  • Image Analysis (Anemia, Skin Conditions)                     │
 │  • Voice Analysis (Respiratory Issues)                          │
-│  • Risk Scoring & Urgency Classification                       │
+│  • Risk Scoring & Urgency Classification                        │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │                   BACKEND API                                   │
 │  • SvelteKit Server Routes                                      │
 │  • JWT Authentication                                           │
-│  • Prisma ORM with SQLite/PostgreSQL                          │
-│  • Background Sync & Queue Management                          │
+│  • Prisma ORM with SQLite/PostgreSQL                            │
+│  • Background Sync & Queue Management                           │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
@@ -393,3 +393,4 @@ This project is licensed under the MIT License - see the [LICENSE](./LICENSE) fi
   <strong>Built with ❤️ for healthcare accessibility in rural communities</strong><br>
   <em>Empowering health workers with AI-powered diagnostic tools</em>
 </div>
+

@@ -244,6 +244,8 @@
         "passwordPlaceholder": "Enter your password",
         "loginButton": "Login",
         "registerButton": "Create Account",
+        "fullName": "Full Name",
+        "fullNamePlaceholder": "Enter your full name",
         "loggingIn": "Logging in...",
         "demoCredentials": "Demo Credentials",
         "chw": "CHW",

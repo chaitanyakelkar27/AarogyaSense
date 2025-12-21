@@ -52,5 +52,8 @@
     "socket.io-client": "^4.8.1",
     "svelte-i18n": "^4.0.1",
     "twilio": "^5.10.2"
+  },
+  "prisma": {
+    "seed": "npx vite-node prisma/seed.ts"
   }
 }

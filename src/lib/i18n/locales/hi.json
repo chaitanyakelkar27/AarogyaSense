@@ -242,6 +242,8 @@
         "passwordPlaceholder": "अपना पासवर्ड दर्ज करें",
         "loginButton": "लॉगिन",
         "registerButton": "खाता बनाएं",
+        "fullName": "पूरा नाम",
+        "fullNamePlaceholder": "अपना पूरा नाम दर्ज करें",
         "loggingIn": "लॉगिन हो रहा है...",
         "demoCredentials": "डेमो क्रेडेंशियल",
         "chw": "सीएचडब्ल्यू",

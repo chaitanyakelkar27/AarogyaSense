@@ -32,11 +32,7 @@
 	}
 
 	body {
-		@apply font-sans text-base text-surface-emphasis antialiased;
-		background-image: radial-gradient(circle at 20% 20%, rgba(16, 112, 122, 0.16), transparent 55%),
-			radial-gradient(circle at 80% 10%, rgba(255, 167, 67, 0.18), transparent 45%),
-			radial-gradient(circle at 20% 75%, rgba(16, 112, 122, 0.12), transparent 60%);
-		background-attachment: fixed;
+		@apply font-sans text-base text-surface-emphasis antialiased bg-background;
 	}
 
 	h1,

@@ -84,19 +84,37 @@
 </script>
 
 <div
-	class="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-8"
+	class="flex min-h-screen items-center justify-center bg-background px-4 py-8 relative overflow-hidden"
 >
-	<div class="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
+	<div class="absolute inset-0 bg-brand/5 opacity-50"></div>
+	<div class="absolute -top-24 -right-24 w-96 h-96 bg-brand/10 rounded-full blur-3xl"></div>
+	<div class="absolute -bottom-24 -left-24 w-96 h-96 bg-accent/5 rounded-full blur-3xl"></div>
+
+	<div class="w-full max-w-md rounded-2xl bg-surface/80 backdrop-blur-md p-8 shadow-xl border border-border/50 relative z-10">
 		<!-- Logo/Header -->
 		<div class="mb-8 text-center">
-			<h1 class="mb-2 text-3xl font-bold text-gray-900">{$_('home.title')}</h1>
-			<p class="text-gray-600">
+			<div class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand text-brand-foreground shadow-lg shadow-brand/20 transform hover:scale-105 transition-transform duration-300">
+				<svg class="h-8 w-8" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+					<path
+						d="M10 23.5C10 16.043 15.9102 10 23.1341 10C30.358 10 36.2683 16.043 36.2683 23.5C36.2683 30.957 30.358 37 23.1341 37C20.6317 37 18.2621 36.2849 16.2042 35.0258L10 37.5L11.9477 31.4135C10.691 29.1828 10 26.4589 10 23.5Z"
+						fill="currentColor"
+					/>
+					<path
+						d="M26.75 16.75C30.0637 16.75 32.75 19.4363 32.75 22.75C32.75 26.0637 30.0637 28.75 26.75 28.75"
+						stroke="hsl(var(--color-brand-foreground))"
+						stroke-width="3"
+						stroke-linecap="round"
+					/>
+				</svg>
+			</div>
+			<h1 class="text-3xl font-bold text-surface-emphasis mb-2">{$_('home.title')}</h1>
+			<p class="text-muted">
 				{mode === 'login' ? $_('auth.signInToAccount') : $_('auth.createYourAccount')}
 			</p>
 		</div>
 		<!-- Error Message -->
 		{#if error}
-			<div class="mb-4 rounded-lg bg-red-50 p-4 text-sm text-red-800">
+			<div class="mb-6 rounded-lg bg-red-50 p-4 text-sm text-red-600 border border-red-100">
 				{error}
 			</div>
 		{/if}
@@ -112,26 +130,26 @@
 			{#if mode === 'register'}
 				<!-- Name -->
 				<div>
-					<label for="name" class="mb-1 block text-sm font-medium text-gray-700">
-						{$_('chw.patientName')} *
+					<label for="name" class="mb-1 block text-sm font-medium text-surface-emphasis">
+						{$_('auth.fullName')} *
 					</label>
 					<input
 						type="text"
 						id="name"
 						bind:value={name}
 						required
-						class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-						placeholder={$_('chw.patientNamePlaceholder')}
+						class="w-full rounded-lg border border-border bg-surface-soft px-4 py-2 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+						placeholder={$_('auth.fullNamePlaceholder')}
 					/>
 				</div>
 
 				<!-- Role -->
 				<div>
-					<label for="role" class="mb-1 block text-sm font-medium text-gray-700"> Role * </label>
+					<label for="role" class="mb-1 block text-sm font-medium text-surface-emphasis"> Role * </label>
 					<select
 						id="role"
 						bind:value={role}
-						class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+						class="w-full rounded-lg border border-border bg-surface-soft px-4 py-2 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
 					>
 						<option value="CHW">Community Health Worker (CHW)</option>
 						<option value="ASHA">ASHA Supervisor</option>
@@ -142,27 +160,27 @@
 
 				<!-- Phone -->
 				<div>
-					<label for="phone" class="mb-1 block text-sm font-medium text-gray-700">
+					<label for="phone" class="mb-1 block text-sm font-medium text-surface-emphasis">
 						{$_('chw.phoneNumber')}
 					</label>
 					<input
 						type="tel"
 						id="phone"
 						bind:value={phone}
-						class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+						class="w-full rounded-lg border border-border bg-surface-soft px-4 py-2 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
 						placeholder={$_('chw.phoneNumberPlaceholder')}
 					/>
 				</div>
 
 				<!-- Language -->
 				<div>
-					<label for="language" class="mb-1 block text-sm font-medium text-gray-700">
+					<label for="language" class="mb-1 block text-sm font-medium text-surface-emphasis">
 						Preferred Language
 					</label>
 					<select
 						id="language"
 						bind:value={language}
-						class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+						class="w-full rounded-lg border border-border bg-surface-soft px-4 py-2 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
 					>
 						<option value="en">English</option>
 						<option value="hi">हिंदी (Hindi)</option>
@@ -174,7 +192,7 @@
 
 			<!-- Email -->
 			<div>
-				<label for="email" class="mb-1 block text-sm font-medium text-gray-700">
+				<label for="email" class="mb-1 block text-sm font-medium text-surface-emphasis">
 					{$_('auth.username')} *
 				</label>
 				<input
@@ -182,14 +200,14 @@
 					id="email"
 					bind:value={email}
 					required
-					class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+					class="w-full rounded-lg border border-border bg-surface-soft px-4 py-2 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
 					placeholder={$_('auth.usernamePlaceholder')}
 				/>
 			</div>
 
 			<!-- Password -->
 			<div>
-				<label for="password" class="mb-1 block text-sm font-medium text-gray-700">
+				<label for="password" class="mb-1 block text-sm font-medium text-surface-emphasis">
 					{$_('auth.password')} *
 				</label>
 				<input
@@ -198,11 +216,11 @@
 					bind:value={password}
 					required
 					minlength="6"
-					class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+					class="w-full rounded-lg border border-border bg-surface-soft px-4 py-2 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
 					placeholder={$_('auth.passwordPlaceholder')}
 				/>
 				{#if mode === 'register'}
-					<p class="mt-1 text-xs text-gray-500">Minimum 6 characters</p>
+					<p class="mt-1 text-xs text-surface-muted">Minimum 6 characters</p>
 				{/if}
 			</div>
 
@@ -210,7 +228,7 @@
 			<button
 				type="submit"
 				disabled={loading}
-				class="w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+				class="w-full rounded-lg bg-brand px-4 py-3 font-semibold text-white transition-colors hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
 			>
 				{#if loading}
 					<span class="flex items-center justify-center">
@@ -247,7 +265,7 @@
 			<button
 				type="button"
 				onclick={toggleMode}
-				class="text-sm text-blue-600 hover:text-blue-700 hover:underline"
+				class="text-sm text-brand hover:text-brand-dark hover:underline"
 			>
 				{mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
 			</button>
@@ -255,8 +273,8 @@
 
 		<!-- Quick Login (Dev Mode) -->
 		{#if mode === 'login'}
-			<div class="mt-6 border-t pt-4">
-				<p class="mb-2 text-center text-xs text-gray-500">{$_('auth.demoCredentials')}:</p>
+			<div class="mt-6 border-t border-border pt-4">
+				<p class="mb-2 text-center text-xs text-surface-muted">{$_('auth.demoCredentials')}:</p>
 				<div class="grid grid-cols-3 gap-2">
 					<button
 						type="button"
@@ -264,7 +282,7 @@
 							email = 'chw@demo.com';
 							password = 'demo123';
 						}}
-						class="rounded bg-gray-100 px-2 py-1 text-xs hover:bg-gray-200"
+						class="rounded bg-surface-soft px-2 py-1 text-xs hover:bg-surface-hover"
 					>
 						{$_('auth.chw')}
 					</button>
@@ -274,7 +292,7 @@
 							email = 'asha@demo.com';
 							password = 'demo123';
 						}}
-						class="rounded bg-gray-100 px-2 py-1 text-xs hover:bg-gray-200"
+						class="rounded bg-surface-soft px-2 py-1 text-xs hover:bg-surface-hover"
 					>
 						{$_('auth.asha')}
 					</button>
@@ -284,7 +302,7 @@
 							email = 'doctor@demo.com';
 							password = 'demo123';
 						}}
-						class="rounded bg-gray-100 px-2 py-1 text-xs hover:bg-gray-200"
+						class="rounded bg-surface-soft px-2 py-1 text-xs hover:bg-surface-hover"
 					>
 						{$_('auth.clinician')}
 					</button>

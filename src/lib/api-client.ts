@@ -68,7 +68,7 @@ class APIClient {
 	}
 
 	/**
-	 * Make authenticated API request
+	 * Make authenticated API request with Offline Support
 	 */
 	private async request<T>(
 		endpoint: string,
@@ -87,6 +87,11 @@ class APIClient {
 		const url = `${API_BASE}${endpoint}`;
 		
 		try {
+			// Check for internet connection first
+			if (!navigator.onLine && options.method !== 'GET') {
+				throw new Error('OFFLINE');
+			}
+
 			const response = await fetch(url, {
 				...options,
 				headers
@@ -103,7 +108,21 @@ class APIClient {
 			}
 
 			return response.json();
-		} catch (error) {
+		} catch (error: any) {
+			// Offline Handling
+			if (error.message === 'OFFLINE' || error.message === 'Failed to fetch' || error.message === 'Network error') {
+				if (options.method === 'POST' && endpoint.includes('/cases')) {
+					console.log('Offline: Queuing request for later sync');
+					this.queueRequest(endpoint, options);
+					// Return a mock success response for offline save
+					return { 
+						id: 'OFFLINE_' + Date.now(), 
+						status: 'PENDING_SYNC',
+						offline: true 
+					} as any;
+				}
+			}
+
 			if (error instanceof APIError) {
 				throw error;
 			}
@@ -113,6 +132,50 @@ class APIClient {
 			);
 		}
 	}
+
+	/**
+	 * Queue failed requests for later sync
+	 */
+	private queueRequest(endpoint: string, options: any) {
+		if (!browser) return;
+		
+		const queue = JSON.parse(localStorage.getItem('offline_queue') || '[]');
+		queue.push({
+			id: Date.now(),
+			endpoint,
+			options,
+			timestamp: Date.now()
+		});
+		localStorage.setItem('offline_queue', JSON.stringify(queue));
+	}
+
+	/**
+	 * Sync queued requests
+	 */
+	async syncOfflineData(): Promise<number> {
+		if (!browser || !navigator.onLine) return 0;
+
+		const queue = JSON.parse(localStorage.getItem('offline_queue') || '[]');
+		if (queue.length === 0) return 0;
+
+		console.log(`Syncing ${queue.length} offline items...`);
+		const failedItems = [];
+		let syncedCount = 0;
+
+		for (const item of queue) {
+			try {
+				await this.request(item.endpoint, item.options);
+				syncedCount++;
+			} catch (error) {
+				console.error('Sync failed for item:', item.id, error);
+				failedItems.push(item);
+			}
+		}
+
+		localStorage.setItem('offline_queue', JSON.stringify(failedItems));
+		return syncedCount;
+	}
+
 
 	/**
 	 * Authentication endpoints

@@ -17,11 +17,13 @@ export const POST = async ({ request }: RequestEvent) => {
 		});
 
 		if (!user) {
+			console.log(`Login failed: User not found for email ${email}`);
 			return json({ error: 'Invalid credentials' }, { status: 401 });
 		}
 
 		// Check if user is active
 		if (!user.isActive) {
+			console.log(`Login failed: User ${email} is inactive`);
 			return json({ error: 'Account is disabled' }, { status: 403 });
 		}
 
@@ -29,6 +31,7 @@ export const POST = async ({ request }: RequestEvent) => {
 		const isValidPassword = await verifyPassword(password, user.password);
 		
 		if (!isValidPassword) {
+			console.log(`Login failed: Invalid password for user ${email}`);
 			return json({ error: 'Invalid credentials' }, { status: 401 });
 		}
 
