@@ -1,11 +1,9 @@
 import { json, type RequestEvent } from '@sveltejs/kit';
 import { sendSMS, makeVoiceCall, formatAlertMessage } from '$lib/server/twilio-client';
 import { PrismaClient } from '@prisma/client';
+import { DEMO_ASHA_PHONE } from '$env/static/private';
 
 const prisma = new PrismaClient();
-
-// Hardcoded ASHA worker phone number for demo (E.164 format with +91 country code)
-const DEMO_ASHA_PHONE = '+918779112231'; // India phone number in E.164 format
 
 export async function POST({ request, locals }: RequestEvent) {
 	try {

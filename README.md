@@ -93,10 +93,14 @@ JWT_SECRET="your-secure-random-string"
 TWILIO_ACCOUNT_SID="your-twilio-sid"
 TWILIO_AUTH_TOKEN="your-twilio-token"
 TWILIO_PHONE_NUMBER="+1234567890"
+DEMO_ASHA_PHONE="+918779112231"  # Your test phone number
 
 # OpenAI (Optional - for enhanced AI features)
 OPENAI_API_KEY="your-openai-key"
 ```
+
+> 📚 **For detailed environment setup**, see [docs/ENVIRONMENT_SETUP.md](docs/ENVIRONMENT_SETUP.md)  
+> 📁 **For project structure details**, see [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)
 
 ### 3. Database Setup
 
