@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import OpenAI from 'openai';
-import { OPENAI_API_KEY } from '$env/static/private';
+import Groq from 'groq-sdk';
+import { GROQ_API_KEY } from '$env/static/private';
 
 const SYSTEM_PROMPT = `You are an AI Health Assistant helping Community Health Workers (CHWs) in rural India assess patients. Your role is to:
 
@@ -97,19 +97,19 @@ interface Message {
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {
-		if (!OPENAI_API_KEY) {
+		if (!GROQ_API_KEY) {
 			return json(
 				{
-					error: 'OpenAI API key not configured. Please add OPENAI_API_KEY to your .env file.',
+					error: 'Groq API key not configured. Please add GROQ_API_KEY to your .env file. Get a free key at https://console.groq.com/keys',
 					setup_required: true
 				},
 				{ status: 500 }
 			);
 		}
 
-		// Initialize OpenAI with the API key
-		const openai = new OpenAI({
-			apiKey: OPENAI_API_KEY
+		// Initialize Groq client
+		const groq = new Groq({
+			apiKey: GROQ_API_KEY
 		});
 
 		const { messages, patientInfo, language } = await request.json();
@@ -127,7 +127,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const responseLanguage = languageMap[language || 'en'] || 'English';
 		const languageInstruction = `\n\nIMPORTANT: Respond ONLY in ${responseLanguage}. Do not use English if the user is using ${responseLanguage}. All questions, assessments, and recommendations must be in ${responseLanguage}.`;
 
-		// Build conversation context
+		// Build conversation messages for Groq
 		const conversationMessages: Message[] = [
 			{
 				role: 'system',
@@ -146,16 +146,15 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Add conversation history
 		conversationMessages.push(...messages);
 
-		// Call OpenAI API
-		const completion = await openai.chat.completions.create({
-			model: 'gpt-4o-mini',
+		// Call Groq API (using llama-3.1-8b-instant - fast and free)
+		const completion = await groq.chat.completions.create({
+			model: 'llama-3.1-8b-instant',
 			messages: conversationMessages,
 			temperature: 0.7,
-			max_tokens: 500,
-			response_format: { type: 'text' } // Allow both text and JSON
+			max_tokens: 500
 		});
 
-		const aiResponse = completion.choices[0].message.content || '';
+		const aiResponse = completion.choices[0]?.message?.content || '';
 
 		// Check if AI provided an assessment (JSON response)
 		let assessmentComplete = false;
@@ -186,6 +185,7 @@ export const POST: RequestHandler = async ({ request }) => {
 					risk_level: assessment.risk_level || 'LOW',
 					risk_score: assessment.risk_score || 0,
 					symptoms: assessment.symptoms || [],
+					possible_diagnosis: assessment.possible_diagnosis || '',
 					recommendations: assessment.recommendations || '',
 					needs_escalation: assessment.needs_escalation || false,
 					escalate_to: assessment.escalate_to || '',
@@ -205,22 +205,22 @@ export const POST: RequestHandler = async ({ request }) => {
 		});
 
 	} catch (error: any) {
-		console.error('OpenAI API Error:', error);
+		console.error('Groq API Error:', error);
 
-		if (error.code === 'insufficient_quota') {
+		if (error.message?.includes('rate_limit')) {
 			return json(
 				{
-					error: 'OpenAI API quota exceeded. Please check your billing or upgrade your plan.',
+					error: 'Groq API rate limit reached. Please wait a moment and try again.',
 					quota_error: true
 				},
 				{ status: 429 }
 			);
 		}
 
-		if (error.code === 'invalid_api_key') {
+		if (error.message?.includes('invalid_api_key') || error.status === 401) {
 			return json(
 				{
-					error: 'Invalid OpenAI API key. Please check your OPENAI_API_KEY in .env file.',
+					error: 'Invalid Groq API key. Please check your GROQ_API_KEY in .env file.',
 					auth_error: true
 				},
 				{ status: 401 }

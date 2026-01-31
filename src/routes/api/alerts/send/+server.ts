@@ -1,9 +1,8 @@
 import { json, type RequestEvent } from '@sveltejs/kit';
 import { sendSMS, makeVoiceCall, formatAlertMessage } from '$lib/server/twilio-client';
-import { PrismaClient } from '@prisma/client';
+import prisma from '$lib/server/prisma';
 import { DEMO_ASHA_PHONE } from '$env/static/private';
 
-const prisma = new PrismaClient();
 
 export async function POST({ request, locals }: RequestEvent) {
 	try {
