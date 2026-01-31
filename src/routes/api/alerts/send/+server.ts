@@ -78,20 +78,22 @@ export async function POST({ request, locals }: RequestEvent) {
 			console.log('[ALERT] Skipping voice call - risk level not high enough');
 		}
 
-		// Save alert to database
+		// Save alert to database (only if we have a valid user ID)
 		if (smsResult.success) {
 			const user = (locals as any).user;
-			await prisma.alert.create({
-				data: {
-					caseId,
-					userId: user?.id || 'system',
-					level: riskLevel,
-					message: smsMessage,
-					channels: JSON.stringify(shouldMakeCall ? ['sms', 'voice'] : ['sms']),
-					status: 'SENT',
-					sentAt: new Date()
-				}
-			});
+			if (user?.id) {
+				await prisma.alert.create({
+					data: {
+						caseId,
+						userId: user.id,
+						level: riskLevel,
+						message: smsMessage,
+						channels: JSON.stringify(shouldMakeCall ? ['sms', 'voice'] : ['sms']),
+						status: 'SENT',
+						sentAt: new Date()
+					}
+				});
+			}
 		}
 
 		return json({

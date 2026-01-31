@@ -8,7 +8,9 @@
 	import {
 		initializeSocket,
 		subscribeToCaseUpdates,
-		disconnectSocket
+		disconnectSocket,
+		activeSOSAlert,
+		dismissSOSAlert
 	} from '$lib/stores/socket-store';
 
 	let unauthorized = false;
@@ -16,6 +18,10 @@
 	let submitting = false;
 	let aiThinking = false;
 	let setupError = '';
+
+	// SOS Alert
+	let showSOSAlert = false;
+	let currentSOSAlert: any = null;
 
 	// Patient Information
 	let patientName = '';
@@ -26,10 +32,12 @@
 
 	// Multimodal inputs
 	let uploadedImages: Array<{ url: string; file: File }> = [];
-	let audioRecording: { url: string; blob: Blob } | null = null;
-	let isRecording = false;
-	let mediaRecorder: MediaRecorder | null = null;
-	let audioChunks: Blob[] = [];
+
+	// Voice Input (Speech-to-Text) for chat
+	let isVoiceInputActive = false;
+	let speechRecognition: any = null;
+	let voiceInputSupported = false;
+	let isSpeaking = false;
 
 	// Chat/Conversation State
 	type Message = {
@@ -114,65 +122,101 @@
 		uploadedImages = uploadedImages.filter((_, i) => i !== index);
 	}
 
-	// Voice Recording Handlers
-	async function startRecording() {
-		try {
-			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-			mediaRecorder = new MediaRecorder(stream);
-			audioChunks = [];
+	// Voice Input (Speech-to-Text) for chat
+	function initVoiceInput() {
+		if (typeof window !== 'undefined') {
+			const SpeechRecognition =
+				(window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+			if (SpeechRecognition) {
+				voiceInputSupported = true;
+				speechRecognition = new SpeechRecognition();
+				speechRecognition.continuous = false;
+				speechRecognition.interimResults = false;
+				speechRecognition.lang = 'en-IN'; // English (India) - also understands Hindi
 
-			mediaRecorder.ondataavailable = (event) => {
-				audioChunks.push(event.data);
-			};
+				speechRecognition.onresult = (event: any) => {
+					const transcript = event.results[0][0].transcript;
+					userInput = userInput ? userInput + ' ' + transcript : transcript;
+					isVoiceInputActive = false;
+				};
 
-			mediaRecorder.onstop = async () => {
-				const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-				const audioUrl = URL.createObjectURL(audioBlob);
-				audioRecording = { url: audioUrl, blob: audioBlob };
-
-				// Upload to server
-				try {
-					const formData = new FormData();
-					formData.append('file', audioBlob, 'recording.webm');
-					formData.append('type', 'audio');
-
-					const response = await fetch('/api/upload', {
-						method: 'POST',
-						body: formData
-					});
-
-					if (!response.ok) {
-						throw new Error('Upload failed');
+				speechRecognition.onerror = (event: any) => {
+					console.error('Speech recognition error:', event.error);
+					isVoiceInputActive = false;
+					if (event.error === 'not-allowed') {
+						alert('Microphone access denied. Please allow microphone permissions.');
 					}
+				};
 
-					const data = await response.json();
-					console.log('Audio uploaded:', data.url);
-				} catch (error) {
-					console.error('Audio upload error:', error);
-					alert('Failed to upload audio');
-				}
+				speechRecognition.onend = () => {
+					isVoiceInputActive = false;
+				};
+			}
+		}
+	}
 
-				// Stop all tracks
-				stream.getTracks().forEach((track) => track.stop());
+	function toggleVoiceInput() {
+		if (isVoiceInputActive) {
+			stopVoiceInput();
+		} else {
+			startVoiceInput();
+		}
+	}
+
+	function startVoiceInput() {
+		if (speechRecognition) {
+			try {
+				speechRecognition.start();
+				isVoiceInputActive = true;
+			} catch (e) {
+				console.error('Failed to start speech recognition:', e);
+			}
+		}
+	}
+
+	function stopVoiceInput() {
+		if (speechRecognition) {
+			try {
+				speechRecognition.stop();
+			} catch (e) {
+				// Ignore
+			}
+		}
+		isVoiceInputActive = false;
+	}
+
+	// Text-to-Speech for AI responses
+	function speakText(text: string) {
+		if ('speechSynthesis' in window) {
+			// Stop any ongoing speech
+			window.speechSynthesis.cancel();
+
+			const utterance = new SpeechSynthesisUtterance(text);
+			utterance.lang = 'en-IN';
+			utterance.rate = 0.9;
+			utterance.pitch = 1;
+
+			utterance.onstart = () => {
+				isSpeaking = true;
 			};
 
-			mediaRecorder.start();
-			isRecording = true;
-		} catch (error) {
-			console.error('Recording error:', error);
-			alert('Failed to start recording. Please check microphone permissions.');
+			utterance.onend = () => {
+				isSpeaking = false;
+			};
+
+			utterance.onerror = () => {
+				isSpeaking = false;
+			};
+
+			window.speechSynthesis.speak(utterance);
 		}
 	}
 
-	function stopRecording() {
-		if (mediaRecorder && isRecording) {
-			mediaRecorder.stop();
-			isRecording = false;
+	function stopSpeaking() {
+		if ('speechSynthesis' in window) {
+			window.speechSynthesis.cancel();
+			isSpeaking = false;
 		}
-	}
-
-	function removeAudio() {
-		audioRecording = null;
 	}
 
 	// AI Functions
@@ -211,9 +255,6 @@
 			if (uploadedImages.length > 0) {
 				enhancedMessage += `\n\n[Note: Patient has ${uploadedImages.length} image(s) uploaded for visual assessment]`;
 			}
-			if (audioRecording) {
-				enhancedMessage += `\n[Note: Voice recording available - analyze for respiratory distress, pain level, voice quality]`;
-			}
 
 			// Get current language
 			const currentLocale = get(locale) || 'en';
@@ -237,8 +278,7 @@
 						age: patientAge,
 						gender: patientGender,
 						village: patientVillage,
-						hasImages: uploadedImages.length > 0,
-						hasAudio: audioRecording !== null
+						hasImages: uploadedImages.length > 0
 					},
 					language: currentLocale
 				})
@@ -415,8 +455,7 @@
 				status: diagnosisResult.needsEscalation ? 'PENDING' : 'COMPLETED',
 				vitalSigns: {},
 				location: patientVillage,
-				images: imageUrls.length > 0 ? JSON.stringify(imageUrls) : null,
-				audioRecordings: audioRecording ? JSON.stringify([audioRecording.url]) : null
+				images: imageUrls.length > 0 ? JSON.stringify(imageUrls) : null
 			};
 
 			const response = await apiClient.cases.create(caseData);
@@ -487,7 +526,6 @@
 		patientPhone = '';
 		patientVillage = '';
 		uploadedImages = [];
-		audioRecording = null;
 		messages = [];
 		conversationHistory = [];
 		showPatientForm = true;
@@ -524,6 +562,9 @@
 			return;
 		}
 
+		// Initialize voice input
+		initVoiceInput();
+
 		// Initialize WebSocket connection
 		initializeSocket();
 
@@ -532,7 +573,56 @@
 			console.log('Received case update:', data);
 			// You can add notification or UI feedback here if needed
 		});
+
+		// Subscribe to SOS alerts
+		const sosUnsubscribe = activeSOSAlert.subscribe((alert) => {
+			if (alert) {
+				currentSOSAlert = alert;
+				showSOSAlert = true;
+				playSOSBuzzer();
+			}
+		});
+
+		return () => {
+			sosUnsubscribe();
+		};
 	});
+
+	// SOS Buzzer Sound
+	function playSOSBuzzer() {
+		try {
+			const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+			const oscillator = audioContext.createOscillator();
+			const gainNode = audioContext.createGain();
+
+			oscillator.connect(gainNode);
+			gainNode.connect(audioContext.destination);
+
+			oscillator.frequency.value = 880;
+			oscillator.type = 'square';
+			gainNode.gain.value = 0.4;
+
+			oscillator.start();
+
+			// Urgent beep pattern
+			let beepCount = 0;
+			const beepInterval = setInterval(() => {
+				beepCount++;
+				gainNode.gain.value = beepCount % 2 === 0 ? 0.4 : 0;
+				if (beepCount >= 10) {
+					clearInterval(beepInterval);
+					oscillator.stop();
+				}
+			}, 150);
+		} catch (e) {
+			console.error('Could not play SOS buzzer:', e);
+		}
+	}
+
+	function acknowledgeSOSAlert() {
+		showSOSAlert = false;
+		dismissSOSAlert();
+	}
 
 	onDestroy(() => {
 		// Clean up WebSocket subscription
@@ -567,9 +657,73 @@
 		</div>
 	</div>
 {:else}
+	<!-- SOS Alert Modal -->
+	{#if showSOSAlert && currentSOSAlert}
+		<div
+			class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+		>
+			<div
+				class="bg-red-600 text-white rounded-2xl p-8 max-w-md mx-4 shadow-2xl border-4 border-white animate-bounce"
+			>
+				<div class="flex items-center justify-center mb-4">
+					<div
+						class="w-16 h-16 bg-white rounded-full flex items-center justify-center animate-pulse"
+					>
+						<svg
+							class="w-10 h-10 text-red-600"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+							/>
+						</svg>
+					</div>
+				</div>
+				<h2 class="text-2xl font-bold text-center mb-2">🚨 SOS EMERGENCY 🚨</h2>
+				<p class="text-center text-white/90 mb-4">Someone needs immediate help!</p>
+				<div class="bg-white/20 rounded-lg p-4 mb-4">
+					<p class="text-lg font-semibold">{currentSOSAlert.senderName}</p>
+					<p class="text-sm opacity-90">{currentSOSAlert.senderRole}</p>
+					<div class="mt-3 space-y-1">
+						<p class="flex items-center gap-2">
+							<span>📍</span> <strong>Location:</strong>
+							{currentSOSAlert.location}
+						</p>
+						<p class="flex items-center gap-2">
+							<span>📞</span> <strong>Phone:</strong>
+							{currentSOSAlert.phone}
+						</p>
+					</div>
+					<p class="mt-3 italic border-t border-white/30 pt-3">"{currentSOSAlert.message}"</p>
+				</div>
+				<div class="flex gap-3">
+					<a
+						href="tel:{currentSOSAlert.phone}"
+						class="flex-1 bg-green-500 text-white py-3 rounded-lg font-bold text-center hover:bg-green-600 transition-colors"
+					>
+						📞 Call Now
+					</a>
+					<button
+						onclick={acknowledgeSOSAlert}
+						class="flex-1 bg-white text-red-600 py-3 rounded-lg font-bold hover:bg-gray-100 transition-colors"
+					>
+						✓ Acknowledge
+					</button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
 	<div class="min-h-screen bg-background">
 		<!-- Header -->
-		<header class="bg-surface shadow-sm border-b border-border/50 sticky top-0 z-50 backdrop-blur-md bg-surface/90">
+		<header
+			class="bg-surface shadow-sm border-b border-border/50 sticky top-0 z-50 backdrop-blur-md bg-surface/90"
+		>
 			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
 				<div class="flex items-center gap-4">
 					<a
@@ -577,7 +731,12 @@
 						aria-label="Home"
 						class="w-10 h-10 bg-brand rounded-xl flex items-center justify-center hover:bg-brand/90 transition-all shadow-sm hover:shadow-brand/20"
 					>
-						<svg class="w-6 h-6 text-brand-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<svg
+							class="w-6 h-6 text-brand-foreground"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
 							<path
 								stroke-linecap="round"
 								stroke-linejoin="round"
@@ -596,7 +755,9 @@
 						<p class="text-sm font-bold text-surface-emphasis">{$authStore.user?.name}</p>
 						<p class="text-xs text-muted">Community Health Worker</p>
 					</div>
-					<div class="h-10 w-10 rounded-full bg-brand/10 flex items-center justify-center text-brand font-bold border border-brand/20">
+					<div
+						class="h-10 w-10 rounded-full bg-brand/10 flex items-center justify-center text-brand font-bold border border-brand/20"
+					>
 						{$authStore.user?.name?.charAt(0) || 'C'}
 					</div>
 				</div>
@@ -612,7 +773,9 @@
 					<div class="space-y-6">
 						<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 							<div>
-								<label for="patientName" class="block text-sm font-medium text-surface-emphasis mb-2"
+								<label
+									for="patientName"
+									class="block text-sm font-medium text-surface-emphasis mb-2"
 									>{$_('chw.patientName')} *</label
 								>
 								<input
@@ -625,7 +788,8 @@
 							</div>
 
 							<div>
-								<label for="patientAge" class="block text-sm font-medium text-surface-emphasis mb-2">{$_('chw.age')} *</label
+								<label for="patientAge" class="block text-sm font-medium text-surface-emphasis mb-2"
+									>{$_('chw.age')} *</label
 								>
 								<input
 									id="patientAge"
@@ -641,7 +805,9 @@
 
 						<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 							<div>
-								<label for="patientGender" class="block text-sm font-medium text-surface-emphasis mb-2"
+								<label
+									for="patientGender"
+									class="block text-sm font-medium text-surface-emphasis mb-2"
 									>{$_('chw.gender')} *</label
 								>
 								<select
@@ -656,7 +822,9 @@
 							</div>
 
 							<div>
-								<label for="patientPhone" class="block text-sm font-medium text-surface-emphasis mb-2"
+								<label
+									for="patientPhone"
+									class="block text-sm font-medium text-surface-emphasis mb-2"
 									>{$_('chw.phoneNumber')}</label
 								>
 								<input
@@ -670,7 +838,10 @@
 						</div>
 
 						<div>
-							<label for="patientVillage" class="block text-sm font-medium text-surface-emphasis mb-2">{$_('chw.village')}</label
+							<label
+								for="patientVillage"
+								class="block text-sm font-medium text-surface-emphasis mb-2"
+								>{$_('chw.village')}</label
 							>
 							<input
 								id="patientVillage"
@@ -750,74 +921,6 @@
 							</div>
 						</div>
 
-						<!-- Voice Recording -->
-						<div>
-							<p class="block text-sm font-medium text-surface-emphasis mb-2"
-								>{$_('chw.voiceNote')} ({$_('chw.optional')})</p
-							>
-							<div class="border border-border rounded-lg p-4">
-								{#if !audioRecording}
-									{#if !isRecording}
-										<button
-											onclick={startRecording}
-											class="w-full bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-										>
-											<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-												/>
-											</svg>
-											{$_('chw.recordVoice')}
-										</button>
-										<p class="text-xs text-muted mt-2 text-center">{$_('chw.voiceHelp')}</p>
-									{:else}
-										<button
-											onclick={stopRecording}
-											class="w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 animate-pulse"
-										>
-											<div class="w-3 h-3 bg-white rounded-full"></div>
-											{$_('chw.recording')}
-										</button>
-									{/if}
-								{:else}
-									<div class="flex items-center justify-between bg-green-500/10 p-3 rounded-lg">
-										<div class="flex items-center gap-3">
-											<svg
-												class="w-8 h-8 text-brand"
-												fill="none"
-												stroke="currentColor"
-												viewBox="0 0 24 24"
-											>
-												<path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-												/>
-											</svg>
-											<div>
-												<p class="font-medium text-surface-emphasis">{$_('chw.voiceCaptured')}</p>
-												<audio controls src={audioRecording.url} class="mt-2 h-8"></audio>
-											</div>
-										</div>
-										<button onclick={removeAudio} aria-label="Remove audio" class="text-red-600 hover:text-red-700">
-											<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-												/>
-											</svg>
-										</button>
-									</div>
-								{/if}
-							</div>
-						</div>
-
 						<!-- Nearby ASHA Workers Info -->
 						<div class="bg-blue-500/10 border border-blue-200 rounded-lg p-4">
 							<h3 class="font-medium text-blue-700 mb-2">{$_('chw.nearbyAshaWorkers')}</h3>
@@ -889,7 +992,28 @@
 												</svg>
 											</div>
 											<div class="flex-1">
-												<p class="text-sm font-medium text-surface-emphasis mb-1">AI Assistant</p>
+												<div class="flex items-center justify-between mb-1">
+													<p class="text-sm font-medium text-surface-emphasis">AI Assistant</p>
+													<button
+														onclick={() => speakText(message.text)}
+														class="p-1 rounded hover:bg-gray-100 transition-colors"
+														aria-label="Listen to response"
+													>
+														<svg
+															class="w-4 h-4 text-brand"
+															fill="none"
+															stroke="currentColor"
+															viewBox="0 0 24 24"
+														>
+															<path
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																stroke-width="2"
+																d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
+															/>
+														</svg>
+													</button>
+												</div>
 												<p class="text-surface-emphasis whitespace-pre-wrap">{message.text}</p>
 											</div>
 										</div>
@@ -925,7 +1049,9 @@
 					<!-- Input Area -->
 					<div class="border-t p-4 bg-surface">
 						{#if setupError}
-							<div class="mb-4 bg-red-500/10 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
+							<div
+								class="mb-4 bg-red-500/10 border border-red-200 text-red-600 px-4 py-3 rounded-lg"
+							>
 								<p class="font-medium">Configuration Error</p>
 								<p class="text-sm">{setupError}</p>
 							</div>
@@ -938,10 +1064,35 @@
 								onkeydown={(e) => e.key === 'Enter' && handleSendMessage()}
 								disabled={!awaitingResponse || aiThinking}
 								placeholder={awaitingResponse
-									? 'Type your response...'
+									? 'Type your response or tap mic to speak...'
 									: 'Please wait for AI question...'}
 								class="flex-1 px-4 py-3 border border-border rounded-lg focus:ring-2 focus:ring-brand focus:border-transparent disabled:bg-surface-soft"
 							/>
+							{#if voiceInputSupported}
+								<button
+									onclick={toggleVoiceInput}
+									disabled={!awaitingResponse || aiThinking}
+									class="px-4 py-3 rounded-lg font-medium transition-colors {isVoiceInputActive
+										? 'bg-red-500 text-white animate-pulse'
+										: 'bg-blue-100 text-blue-600 hover:bg-blue-200'} disabled:opacity-50 disabled:cursor-not-allowed"
+									aria-label={isVoiceInputActive ? 'Stop voice input' : 'Start voice input'}
+								>
+									{#if isVoiceInputActive}
+										<svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+											<rect x="6" y="6" width="12" height="12" rx="2" />
+										</svg>
+									{:else}
+										<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+											/>
+										</svg>
+									{/if}
+								</button>
+							{/if}
 							<button
 								onclick={handleSendMessage}
 								disabled={!awaitingResponse || aiThinking || !userInput.trim()}
@@ -950,6 +1101,11 @@
 								Send
 							</button>
 						</div>
+						{#if voiceInputSupported}
+							<p class="text-xs text-muted mt-2 text-center">
+								💡 Tip: Tap the microphone button to speak your response in English or Hindi
+							</p>
+						{/if}
 					</div>
 				</div>
 			{:else}
@@ -1016,12 +1172,7 @@
 					<!-- Risk Assessment -->
 					<div class="bg-surface rounded-lg shadow-lg p-6">
 						<h3 class="text-lg font-bold text-surface-emphasis mb-4 flex items-center gap-2">
-							<svg
-								class="w-5 h-5 text-muted"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
+							<svg class="w-5 h-5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path
 									stroke-linecap="round"
 									stroke-linejoin="round"
@@ -1091,12 +1242,7 @@
 					<!-- Symptoms -->
 					<div class="bg-surface rounded-lg shadow-lg p-6">
 						<h3 class="text-lg font-bold text-surface-emphasis mb-4 flex items-center gap-2">
-							<svg
-								class="w-5 h-5 text-muted"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
+							<svg class="w-5 h-5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path
 									stroke-linecap="round"
 									stroke-linejoin="round"
@@ -1170,7 +1316,7 @@
 					{/if}
 
 					<!-- Media Attachments -->
-					{#if uploadedImages.length > 0 || audioRecording}
+					{#if uploadedImages.length > 0}
 						<div class="bg-surface rounded-lg shadow-lg p-6">
 							<h3 class="text-lg font-bold text-surface-emphasis mb-4 flex items-center gap-2">
 								<svg
@@ -1203,13 +1349,6 @@
 											/>
 										{/each}
 									</div>
-								</div>
-							{/if}
-
-							{#if audioRecording}
-								<div>
-									<p class="text-sm font-medium text-surface-emphasis mb-3">Voice Recording</p>
-									<audio controls src={audioRecording.url} class="w-full"></audio>
 								</div>
 							{/if}
 						</div>

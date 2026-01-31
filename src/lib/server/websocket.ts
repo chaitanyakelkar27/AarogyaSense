@@ -73,3 +73,27 @@ export function emitNewCase(caseData: any) {
 
 	console.log(`Emitted new case: ${caseData.id}`);
 }
+
+/**
+ * Emit SOS emergency alert to all connected clients
+ */
+export function emitSOSAlert(sosData: {
+	id: string;
+	senderName: string;
+	senderRole: string;
+	location: string;
+	phone: string;
+	message: string;
+}) {
+	if (!io) {
+		console.warn('Socket.IO server not initialized');
+		return;
+	}
+
+	io.emit('sosAlert', {
+		...sosData,
+		timestamp: new Date().toISOString()
+	});
+
+	console.log(`Emitted SOS alert from: ${sosData.senderName}`);
+}

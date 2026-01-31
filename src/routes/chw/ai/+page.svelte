@@ -20,10 +20,12 @@
 
 	// Multimodal inputs
 	let uploadedImages: Array<{ url: string; file: File }> = [];
-	let audioRecording: { url: string; blob: Blob } | null = null;
-	let isRecording = false;
-	let mediaRecorder: MediaRecorder | null = null;
-	let audioChunks: Blob[] = [];
+
+	// Voice Input (Speech-to-Text) for chat
+	let isVoiceInputActive = false;
+	let speechRecognition: any = null;
+	let voiceInputSupported = false;
+	let isSpeaking = false;
 
 	// Chat/Conversation State
 	type Message = {
@@ -69,12 +71,12 @@
 	async function handleImageUpload(event: Event) {
 		const target = event.target as HTMLInputElement;
 		const files = target.files;
-		
+
 		if (!files || files.length === 0) return;
 
 		for (let i = 0; i < files.length; i++) {
 			const file = files[i];
-			
+
 			// Create preview URL
 			const previewUrl = URL.createObjectURL(file);
 			uploadedImages = [...uploadedImages, { url: previewUrl, file }];
@@ -107,67 +109,6 @@
 		uploadedImages = uploadedImages.filter((_, i) => i !== index);
 	}
 
-	// Voice Recording Handlers
-	async function startRecording() {
-		try {
-			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-			mediaRecorder = new MediaRecorder(stream);
-			audioChunks = [];
-
-			mediaRecorder.ondataavailable = (event) => {
-				audioChunks.push(event.data);
-			};
-
-			mediaRecorder.onstop = async () => {
-				const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-				const audioUrl = URL.createObjectURL(audioBlob);
-				audioRecording = { url: audioUrl, blob: audioBlob };
-
-				// Upload to server
-				try {
-					const formData = new FormData();
-					formData.append('file', audioBlob, 'recording.webm');
-					formData.append('type', 'audio');
-
-					const response = await fetch('/api/upload', {
-						method: 'POST',
-						body: formData
-					});
-
-					if (!response.ok) {
-						throw new Error('Upload failed');
-					}
-
-					const data = await response.json();
-					console.log('Audio uploaded:', data.url);
-				} catch (error) {
-					console.error('Audio upload error:', error);
-					alert('Failed to upload audio');
-				}
-
-				// Stop all tracks
-				stream.getTracks().forEach((track) => track.stop());
-			};
-
-			mediaRecorder.start();
-			isRecording = true;
-		} catch (error) {
-			console.error('Recording error:', error);
-			alert('Failed to start recording. Please check microphone permissions.');
-		}
-	}
-
-	function stopRecording() {
-		if (mediaRecorder && isRecording) {
-			mediaRecorder.stop();
-			isRecording = false;
-		}
-	}
-
-	function removeAudio() {
-		audioRecording = null;
-	}
-
 	// AI Functions
 	function addMessage(role: 'ai' | 'user', text: string) {
 		messages = [
@@ -180,7 +121,7 @@
 			}
 		];
 		awaitingResponse = role === 'ai';
-		
+
 		setTimeout(() => {
 			const chatContainer = document.getElementById('chat-container');
 			if (chatContainer) {
@@ -191,7 +132,7 @@
 
 	async function callAI(userMessage: string): Promise<void> {
 		aiThinking = true;
-		
+
 		try {
 			// Add user message to conversation history
 			conversationHistory.push({
@@ -204,9 +145,6 @@
 			if (uploadedImages.length > 0) {
 				enhancedMessage += `\n\n[Note: Patient has ${uploadedImages.length} image(s) uploaded for visual assessment]`;
 			}
-			if (audioRecording) {
-				enhancedMessage += `\n[Note: Voice recording available - analyze for respiratory distress, pain level, voice quality]`;
-			}
 
 			// Call backend AI API
 			const response = await fetch('/api/ai/chat', {
@@ -215,17 +153,19 @@
 					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({
-					messages: [{
-						role: 'user',
-						content: enhancedMessage
-					}, ...conversationHistory],
+					messages: [
+						{
+							role: 'user',
+							content: enhancedMessage
+						},
+						...conversationHistory
+					],
 					patientInfo: {
 						name: patientName,
 						age: patientAge,
 						gender: patientGender,
 						village: patientVillage,
-						hasImages: uploadedImages.length > 0,
-						hasAudio: audioRecording !== null
+						hasImages: uploadedImages.length > 0
 					}
 				})
 			});
@@ -281,39 +221,44 @@
 			alert('Please fill in all required patient information');
 			return;
 		}
-		
+
 		showPatientForm = false;
 		setupError = '';
-		
+
 		// Welcome message
-		addMessage('ai', `Hello! I'm your AI health assistant. Let's assess ${patientName}'s condition together. I'll ask you a few questions to understand the situation better.`);
-		
+		addMessage(
+			'ai',
+			`Hello! I'm your AI health assistant. Let's assess ${patientName}'s condition together. I'll ask you a few questions to understand the situation better.`
+		);
+
 		// Start conversation with AI
 		setTimeout(async () => {
-			await callAI("Please start the health assessment. Ask your first question about the patient's condition.");
+			await callAI(
+				"Please start the health assessment. Ask your first question about the patient's condition."
+			);
 		}, 1000);
 	}
 
 	async function handleSendMessage() {
 		if (!userInput.trim() || !awaitingResponse || aiThinking) return;
-		
+
 		const message = userInput;
 		userInput = '';
-		
+
 		// Add user message to UI
 		addMessage('user', message);
-		
+
 		awaitingResponse = false;
-		
+
 		// Call AI with user's response
 		await callAI(message);
 	}
 
 	async function submitCase() {
 		if (!diagnosisResult) return;
-		
+
 		submitting = true;
-		
+
 		try {
 			// Build conversation summary
 			const conversationSummary = messages
@@ -321,7 +266,7 @@
 				.join('\n');
 
 			// Collect image URLs
-			const imageUrls = uploadedImages.map(img => img.url);
+			const imageUrls = uploadedImages.map((img) => img.url);
 
 			const caseData: any = {
 				patient: {
@@ -339,22 +284,20 @@
 				status: diagnosisResult.needsEscalation ? 'PENDING' : 'COMPLETED',
 				vitalSigns: {},
 				location: patientVillage,
-				images: imageUrls.length > 0 ? JSON.stringify(imageUrls) : null,
-				audioRecordings: audioRecording ? JSON.stringify([audioRecording.url]) : null
+				images: imageUrls.length > 0 ? JSON.stringify(imageUrls) : null
 			};
-			
+
 			const response = await apiClient.cases.create(caseData);
 
 			// If high/critical risk, send alert to ASHA worker
 			if (diagnosisResult.riskLevel === 'HIGH' || diagnosisResult.riskLevel === 'CRITICAL') {
 				await sendAshaAlert(response.case.id);
 			}
-			
+
 			alert('Case submitted successfully!');
-			
+
 			// Reset form
 			resetForm();
-			
 		} catch (error: any) {
 			console.error('Error submitting case:', error);
 			alert('Failed to submit case: ' + (error.message || 'Unknown error'));
@@ -394,7 +337,6 @@
 		patientPhone = '';
 		patientVillage = '';
 		uploadedImages = [];
-		audioRecording = null;
 		messages = [];
 		conversationHistory = [];
 		showPatientForm = true;
@@ -413,20 +355,143 @@
 			escalateTo: '',
 			summary: ''
 		};
+		stopVoiceInput();
+	}
+
+	// Voice Input Functions (Speech-to-Text)
+	function initVoiceInput() {
+		const SpeechRecognition =
+			(window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+		if (SpeechRecognition) {
+			voiceInputSupported = true;
+			speechRecognition = new SpeechRecognition();
+			speechRecognition.continuous = true;
+			speechRecognition.interimResults = true;
+			speechRecognition.lang = 'en-IN'; // Default to Indian English, can be changed
+
+			speechRecognition.onresult = (event: any) => {
+				let finalTranscript = '';
+				let interimTranscript = '';
+
+				for (let i = event.resultIndex; i < event.results.length; i++) {
+					const transcript = event.results[i][0].transcript;
+					if (event.results[i].isFinal) {
+						finalTranscript += transcript;
+					} else {
+						interimTranscript += transcript;
+					}
+				}
+
+				if (finalTranscript) {
+					userInput = userInput + finalTranscript;
+				}
+			};
+
+			speechRecognition.onerror = (event: any) => {
+				console.error('Speech recognition error:', event.error);
+				if (event.error === 'not-allowed') {
+					alert('Microphone access denied. Please allow microphone permissions.');
+				}
+				isVoiceInputActive = false;
+			};
+
+			speechRecognition.onend = () => {
+				if (isVoiceInputActive) {
+					// Restart if still active (continuous mode)
+					try {
+						speechRecognition.start();
+					} catch (e) {
+						isVoiceInputActive = false;
+					}
+				}
+			};
+		}
+	}
+
+	function toggleVoiceInput() {
+		if (!voiceInputSupported) {
+			alert('Voice input is not supported in this browser. Please use Chrome or Edge.');
+			return;
+		}
+
+		if (isVoiceInputActive) {
+			stopVoiceInput();
+		} else {
+			startVoiceInput();
+		}
+	}
+
+	function startVoiceInput() {
+		if (speechRecognition) {
+			try {
+				speechRecognition.start();
+				isVoiceInputActive = true;
+			} catch (e) {
+				console.error('Failed to start speech recognition:', e);
+			}
+		}
+	}
+
+	function stopVoiceInput() {
+		if (speechRecognition) {
+			try {
+				speechRecognition.stop();
+			} catch (e) {
+				// Ignore
+			}
+		}
+		isVoiceInputActive = false;
+	}
+
+	// Text-to-Speech for AI responses
+	function speakText(text: string) {
+		if ('speechSynthesis' in window) {
+			// Stop any ongoing speech
+			window.speechSynthesis.cancel();
+
+			const utterance = new SpeechSynthesisUtterance(text);
+			utterance.lang = 'en-IN';
+			utterance.rate = 0.9;
+			utterance.pitch = 1;
+
+			utterance.onstart = () => {
+				isSpeaking = true;
+			};
+
+			utterance.onend = () => {
+				isSpeaking = false;
+			};
+
+			utterance.onerror = () => {
+				isSpeaking = false;
+			};
+
+			window.speechSynthesis.speak(utterance);
+		}
+	}
+
+	function stopSpeaking() {
+		if ('speechSynthesis' in window) {
+			window.speechSynthesis.cancel();
+			isSpeaking = false;
+		}
 	}
 
 	onMount(() => {
 		const state = get(authStore);
 		if (!state.isAuthenticated) {
-			goto('/auth', { replaceState: true});
+			goto('/auth', { replaceState: true });
 			return;
 		}
-		
+
 		const allowedRoles = ['CHW', 'ASHA', 'ASHA_SUPERVISOR', 'CLINICIAN', 'DOCTOR', 'ADMIN'];
 		if (!allowedRoles.includes(state.user?.role || '')) {
 			unauthorized = true;
 			return;
 		}
+
+		// Initialize voice input
+		initVoiceInput();
 	});
 </script>
 
@@ -435,14 +500,20 @@
 		<div class="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
 			<div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
 				<svg class="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+					/>
 				</svg>
 			</div>
 			<h2 class="text-2xl font-bold text-gray-900 mb-3">Access Denied</h2>
-			<p class="text-gray-600 mb-6">
-				You don't have permission to access this page.
-			</p>
-			<a href="/" class="block w-full bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors">
+			<p class="text-gray-600 mb-6">You don't have permission to access this page.</p>
+			<a
+				href="/"
+				class="block w-full bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors"
+			>
 				Return to Home
 			</a>
 		</div>
@@ -453,9 +524,17 @@
 		<header class="bg-white shadow-sm border-b">
 			<div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
 				<div class="flex items-center gap-4">
-					<a href="/" class="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center hover:bg-green-700 transition-colors">
+					<a
+						href="/"
+						class="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center hover:bg-green-700 transition-colors"
+					>
 						<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+							/>
 						</svg>
 					</a>
 					<div>
@@ -474,7 +553,7 @@
 				<!-- Patient Information Form -->
 				<div class="bg-white rounded-lg shadow-lg p-8">
 					<h2 class="text-2xl font-bold text-gray-900 mb-6">Patient Information</h2>
-					
+
 					<div class="space-y-4">
 						<div class="grid grid-cols-2 gap-4">
 							<div>
@@ -486,7 +565,7 @@
 									class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
 								/>
 							</div>
-							
+
 							<div>
 								<label class="block text-sm font-medium text-gray-700 mb-2">Age *</label>
 								<input
@@ -499,7 +578,7 @@
 								/>
 							</div>
 						</div>
-						
+
 						<div class="grid grid-cols-2 gap-4">
 							<div>
 								<label class="block text-sm font-medium text-gray-700 mb-2">Gender *</label>
@@ -512,7 +591,7 @@
 									<option value="OTHER">Other</option>
 								</select>
 							</div>
-							
+
 							<div>
 								<label class="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
 								<input
@@ -523,7 +602,7 @@
 								/>
 							</div>
 						</div>
-						
+
 						<div>
 							<label class="block text-sm font-medium text-gray-700 mb-2">Village/Location</label>
 							<input
@@ -536,8 +615,12 @@
 
 						<!-- Image Upload -->
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-2">Patient Images (Optional)</label>
-							<div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-green-500 transition-colors">
+							<label class="block text-sm font-medium text-gray-700 mb-2"
+								>Patient Images (Optional)</label
+							>
+							<div
+								class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-green-500 transition-colors"
+							>
 								<input
 									type="file"
 									accept="image/*"
@@ -547,11 +630,23 @@
 									id="image-upload"
 								/>
 								<label for="image-upload" class="cursor-pointer">
-									<svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+									<svg
+										class="w-12 h-12 text-gray-400 mx-auto mb-2"
+										fill="none"
+										stroke="currentColor"
+										viewBox="0 0 24 24"
+									>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+										/>
 									</svg>
 									<p class="text-sm text-gray-600">Click to upload images</p>
-									<p class="text-xs text-gray-500 mt-1">For skin conditions, wounds, rashes, etc.</p>
+									<p class="text-xs text-gray-500 mt-1">
+										For skin conditions, wounds, rashes, etc.
+									</p>
 								</label>
 							</div>
 
@@ -559,68 +654,28 @@
 								<div class="mt-4 grid grid-cols-3 gap-4">
 									{#each uploadedImages as image, index}
 										<div class="relative group">
-											<img src={image.url} alt="Patient" class="w-full h-32 object-cover rounded-lg" />
+											<img
+												src={image.url}
+												alt="Patient"
+												class="w-full h-32 object-cover rounded-lg"
+											/>
 											<button
 												onclick={() => removeImage(index)}
 												class="absolute top-2 right-2 bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
 											>
 												<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+													<path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M6 18L18 6M6 6l12 12"
+													/>
 												</svg>
 											</button>
 										</div>
 									{/each}
 								</div>
 							{/if}
-						</div>
-
-						<!-- Voice Recording -->
-						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-2">Voice Note (Optional)</label>
-							<div class="border border-gray-300 rounded-lg p-4">
-								{#if !audioRecording}
-									{#if !isRecording}
-										<button
-											onclick={startRecording}
-											class="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-										>
-											<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
-											</svg>
-											Record Patient's Voice
-										</button>
-										<p class="text-xs text-gray-500 mt-2 text-center">Helps analyze breathing patterns, pain level, voice quality</p>
-									{:else}
-										<button
-											onclick={stopRecording}
-											class="w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 animate-pulse"
-										>
-											<div class="w-3 h-3 bg-white rounded-full"></div>
-											Recording... Click to stop
-										</button>
-									{/if}
-								{:else}
-									<div class="flex items-center justify-between bg-green-50 p-3 rounded-lg">
-										<div class="flex items-center gap-3">
-											<svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-											</svg>
-											<div>
-												<p class="font-medium text-gray-900">Voice recording captured</p>
-												<audio controls src={audioRecording.url} class="mt-2 h-8"></audio>
-											</div>
-										</div>
-										<button
-											onclick={removeAudio}
-											class="text-red-600 hover:text-red-700"
-										>
-											<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-											</svg>
-										</button>
-									</div>
-								{/if}
-							</div>
 						</div>
 
 						<!-- Nearby ASHA Workers Info -->
@@ -634,10 +689,12 @@
 									</div>
 								{/each}
 							</div>
-							<p class="text-xs text-blue-700 mt-2">High-risk cases will automatically alert the nearest ASHA worker</p>
+							<p class="text-xs text-blue-700 mt-2">
+								High-risk cases will automatically alert the nearest ASHA worker
+							</p>
 						</div>
 					</div>
-					
+
 					<button
 						onclick={startDiagnosis}
 						disabled={!patientName || !patientAge || !patientGender}
@@ -654,29 +711,83 @@
 						<div class="flex items-center justify-between">
 							<div>
 								<h3 class="font-bold text-lg">AI Health Assistant</h3>
-								<p class="text-sm text-white/90">Assessing {patientName}, {patientAge} years, {patientGender}</p>
+								<p class="text-sm text-white/90">
+									Assessing {patientName}, {patientAge} years, {patientGender}
+								</p>
 							</div>
-							<div class="text-right">
-								<p class="text-xs text-white/80">Questions asked</p>
-								<p class="text-2xl font-bold">{questionCount}</p>
+							<div class="flex items-center gap-4">
+								{#if isSpeaking}
+									<button
+										onclick={stopSpeaking}
+										class="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-sm transition-colors"
+									>
+										<svg class="w-4 h-4 animate-pulse" fill="currentColor" viewBox="0 0 24 24">
+											<path
+												d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
+											/>
+										</svg>
+										Stop
+									</button>
+								{/if}
+								<div class="text-right">
+									<p class="text-xs text-white/80">Questions asked</p>
+									<p class="text-2xl font-bold">{questionCount}</p>
+								</div>
 							</div>
 						</div>
 					</div>
-					
+
 					<!-- Chat Messages -->
 					<div id="chat-container" class="h-[500px] overflow-y-auto p-6 space-y-4 bg-gray-50">
 						{#each messages as message}
 							<div class="flex {message.role === 'ai' ? 'justify-start' : 'justify-end'}">
-								<div class="max-w-[80%] {message.role === 'ai' ? 'bg-white border border-gray-200' : 'bg-green-600 text-white'} rounded-lg p-4 shadow-sm">
+								<div
+									class="max-w-[80%] {message.role === 'ai'
+										? 'bg-white border border-gray-200'
+										: 'bg-green-600 text-white'} rounded-lg p-4 shadow-sm"
+								>
 									{#if message.role === 'ai'}
 										<div class="flex items-start gap-3">
-											<div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-												<svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+											<div
+												class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0"
+											>
+												<svg
+													class="w-5 h-5 text-green-600"
+													fill="none"
+													stroke="currentColor"
+													viewBox="0 0 24 24"
+												>
+													<path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+													/>
 												</svg>
 											</div>
 											<div class="flex-1">
-												<p class="text-sm font-medium text-gray-900 mb-1">AI Assistant</p>
+												<div class="flex items-center justify-between mb-1">
+													<p class="text-sm font-medium text-gray-900">AI Assistant</p>
+													<button
+														onclick={() => speakText(message.text)}
+														class="p-1 hover:bg-gray-100 rounded-full transition-colors"
+														title="Listen to this message"
+													>
+														<svg
+															class="w-4 h-4 text-gray-500 hover:text-green-600"
+															fill="none"
+															stroke="currentColor"
+															viewBox="0 0 24 24"
+														>
+															<path
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																stroke-width="2"
+																d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
+															/>
+														</svg>
+													</button>
+												</div>
 												<p class="text-gray-700 whitespace-pre-wrap">{message.text}</p>
 											</div>
 										</div>
@@ -693,8 +804,14 @@
 									<div class="flex items-center gap-2">
 										<div class="flex gap-1">
 											<div class="w-2 h-2 bg-green-600 rounded-full animate-bounce"></div>
-											<div class="w-2 h-2 bg-green-600 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-											<div class="w-2 h-2 bg-green-600 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+											<div
+												class="w-2 h-2 bg-green-600 rounded-full animate-bounce"
+												style="animation-delay: 0.2s"
+											></div>
+											<div
+												class="w-2 h-2 bg-green-600 rounded-full animate-bounce"
+												style="animation-delay: 0.4s"
+											></div>
 										</div>
 										<span class="text-sm text-gray-600">AI is thinking...</span>
 									</div>
@@ -702,7 +819,7 @@
 							</div>
 						{/if}
 					</div>
-					
+
 					<!-- Input Area -->
 					<div class="border-t p-4 bg-white">
 						{#if setupError}
@@ -712,13 +829,57 @@
 							</div>
 						{/if}
 
+						<!-- Voice Input Status -->
+						{#if isVoiceInputActive}
+							<div
+								class="mb-3 bg-green-50 border border-green-200 rounded-lg p-3 flex items-center justify-between"
+							>
+								<div class="flex items-center gap-2">
+									<div class="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+									<span class="text-green-700 font-medium">Listening... Speak now</span>
+								</div>
+								<button
+									onclick={stopVoiceInput}
+									class="text-green-700 hover:text-green-900 text-sm underline"
+								>
+									Stop
+								</button>
+							</div>
+						{/if}
+
 						<div class="flex gap-3">
+							<!-- Voice Input Button -->
+							{#if voiceInputSupported}
+								<button
+									onclick={toggleVoiceInput}
+									disabled={!awaitingResponse || aiThinking}
+									class="p-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed
+										{isVoiceInputActive
+										? 'bg-red-500 hover:bg-red-600 text-white animate-pulse'
+										: 'bg-blue-100 hover:bg-blue-200 text-blue-700'}"
+									title={isVoiceInputActive ? 'Stop voice input' : 'Start voice input'}
+								>
+									<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+										/>
+									</svg>
+								</button>
+							{/if}
+
 							<input
 								type="text"
 								bind:value={userInput}
 								onkeydown={(e) => e.key === 'Enter' && handleSendMessage()}
 								disabled={!awaitingResponse || aiThinking}
-								placeholder={awaitingResponse ? 'Type your response...' : 'Please wait for AI question...'}
+								placeholder={isVoiceInputActive
+									? 'Listening... or type here'
+									: awaitingResponse
+										? 'Type or tap 🎤 to speak...'
+										: 'Please wait for AI question...'}
 								class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-100"
 							/>
 							<button
@@ -729,6 +890,13 @@
 								Send
 							</button>
 						</div>
+
+						<!-- Voice Help Text -->
+						{#if voiceInputSupported && awaitingResponse && !aiThinking}
+							<p class="text-xs text-gray-500 mt-2 text-center">
+								💡 Tip: Tap the microphone button to speak your response in English or Hindi
+							</p>
+						{/if}
 					</div>
 				</div>
 			{:else}
@@ -737,36 +905,48 @@
 					<!-- Risk Assessment Card -->
 					<div class="bg-white rounded-lg shadow-lg p-8">
 						<h2 class="text-2xl font-bold text-gray-900 mb-6">Assessment Complete</h2>
-						
+
 						<div class="grid grid-cols-3 gap-6 mb-8">
 							<div class="text-center">
 								<p class="text-sm text-gray-600 mb-2">Risk Level</p>
-								<div class="inline-block px-6 py-3 rounded-lg font-bold text-lg
+								<div
+									class="inline-block px-6 py-3 rounded-lg font-bold text-lg
 									{diagnosisResult.riskLevel === 'CRITICAL' ? 'bg-red-100 text-red-800' : ''}
 									{diagnosisResult.riskLevel === 'HIGH' ? 'bg-orange-100 text-orange-800' : ''}
 									{diagnosisResult.riskLevel === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' : ''}
 									{diagnosisResult.riskLevel === 'LOW' ? 'bg-green-100 text-green-800' : ''}
-								">
+								"
+								>
 									{diagnosisResult.riskLevel}
 								</div>
 							</div>
-							
+
 							<div class="text-center">
 								<p class="text-sm text-gray-600 mb-2">Risk Score</p>
-								<div class="text-4xl font-bold text-gray-900">{diagnosisResult.riskScore}<span class="text-xl text-gray-500">/100</span></div>
+								<div class="text-4xl font-bold text-gray-900">
+									{diagnosisResult.riskScore}<span class="text-xl text-gray-500">/100</span>
+								</div>
 							</div>
-							
+
 							<div class="text-center">
 								<p class="text-sm text-gray-600 mb-2">Priority</p>
-								<div class="text-4xl font-bold text-gray-900">{diagnosisResult.priority}<span class="text-xl text-gray-500">/5</span></div>
+								<div class="text-4xl font-bold text-gray-900">
+									{diagnosisResult.priority}<span class="text-xl text-gray-500">/5</span>
+								</div>
 							</div>
 						</div>
 
 						{#if diagnosisResult.needsEscalation}
 							<div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
 								<p class="font-bold text-red-900 mb-2">Escalation Required</p>
-								<p class="text-red-700">This case requires attention from: <span class="font-bold">{diagnosisResult.escalateTo}</span></p>
-								<p class="text-sm text-red-600 mt-2">Alert will be sent automatically upon case submission</p>
+								<p class="text-red-700">
+									This case requires attention from: <span class="font-bold"
+										>{diagnosisResult.escalateTo}</span
+									>
+								</p>
+								<p class="text-sm text-red-600 mt-2">
+									Alert will be sent automatically upon case submission
+								</p>
 							</div>
 						{/if}
 
@@ -775,7 +955,9 @@
 								<h3 class="font-bold text-gray-900 mb-2">Identified Symptoms</h3>
 								<div class="flex flex-wrap gap-2">
 									{#each diagnosisResult.symptoms as symptom}
-										<span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">{symptom}</span>
+										<span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm"
+											>{symptom}</span
+										>
 									{/each}
 								</div>
 							</div>
@@ -796,19 +978,18 @@
 
 							{#if uploadedImages.length > 0}
 								<div>
-									<h3 class="font-bold text-gray-900 mb-2">Attached Images ({uploadedImages.length})</h3>
+									<h3 class="font-bold text-gray-900 mb-2">
+										Attached Images ({uploadedImages.length})
+									</h3>
 									<div class="grid grid-cols-4 gap-4">
 										{#each uploadedImages as image}
-											<img src={image.url} alt="Patient" class="w-full h-24 object-cover rounded-lg border border-gray-200" />
+											<img
+												src={image.url}
+												alt="Patient"
+												class="w-full h-24 object-cover rounded-lg border border-gray-200"
+											/>
 										{/each}
 									</div>
-								</div>
-							{/if}
-
-							{#if audioRecording}
-								<div>
-									<h3 class="font-bold text-gray-900 mb-2">Voice Recording</h3>
-									<audio controls src={audioRecording.url} class="w-full"></audio>
 								</div>
 							{/if}
 						</div>
@@ -837,7 +1018,8 @@
 
 <style>
 	@keyframes bounce {
-		0%, 100% {
+		0%,
+		100% {
 			transform: translateY(0);
 		}
 		50% {

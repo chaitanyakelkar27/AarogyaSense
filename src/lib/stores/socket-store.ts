@@ -15,6 +15,16 @@ interface NewCaseEvent {
 	[key: string]: any;
 }
 
+interface SOSAlertEvent {
+	id: string;
+	senderName: string;
+	senderRole: string;
+	location: string;
+	phone: string;
+	message: string;
+	timestamp: string;
+}
+
 // Store for socket connection
 export const socketStore = writable<Socket | null>(null);
 
@@ -23,6 +33,12 @@ export const socketConnected = writable(false);
 
 // Store for case updates
 export const caseUpdates = writable<CaseUpdateEvent[]>([]);
+
+// Store for SOS alerts
+export const sosAlerts = writable<SOSAlertEvent[]>([]);
+
+// Store for active SOS (currently showing)
+export const activeSOSAlert = writable<SOSAlertEvent | null>(null);
 
 let socket: Socket | null = null;
 
@@ -77,6 +93,18 @@ export function initializeSocket() {
 		}
 	});
 
+	// Listen for SOS alerts
+	socket.on('sosAlert', (data: SOSAlertEvent) => {
+		console.log('SOS Alert received:', data);
+		sosAlerts.update((alerts) => [data, ...alerts]);
+		activeSOSAlert.set(data);
+
+		// Trigger a custom event for components to handle
+		if (browser) {
+			window.dispatchEvent(new CustomEvent('sosAlert', { detail: data }));
+		}
+	});
+
 	return socket;
 }
 
@@ -105,7 +133,7 @@ export function getSocket(): Socket | null {
 export function subscribeToCaseUpdates(callback: (data: CaseUpdateEvent) => void) {
 	if (!socket) {
 		console.warn('Socket not initialized');
-		return () => {};
+		return () => { };
 	}
 
 	const handler = (data: CaseUpdateEvent) => {
@@ -127,4 +155,19 @@ export function subscribeToCaseUpdates(callback: (data: CaseUpdateEvent) => void
  */
 export function clearCaseUpdates() {
 	caseUpdates.set([]);
+}
+
+/**
+ * Dismiss active SOS alert
+ */
+export function dismissSOSAlert() {
+	activeSOSAlert.set(null);
+}
+
+/**
+ * Clear all SOS alerts
+ */
+export function clearSOSAlerts() {
+	sosAlerts.set([]);
+	activeSOSAlert.set(null);
 }
