@@ -10,7 +10,7 @@
 **Before**:
 ```typescript
 // Hardcoded ASHA worker phone number for demo
-const DEMO_ASHA_PHONE = '+918779112231';
+const DEMO_ASHA_PHONE = '+91XXXXXXXXXX';
 ```
 
 **After**:
@@ -30,7 +30,7 @@ import { DEMO_ASHA_PHONE } from '$env/static/private';
 
 **New Environment Variable**:
 ```env
-DEMO_ASHA_PHONE="+918779112231"
+DEMO_ASHA_PHONE="+91XXXXXXXXXX"  # Replace with your phone number
 ```
 
 **Security Note**: The `.env` file is already in `.gitignore` and will never be committed to version control.
@@ -94,7 +94,7 @@ If you're pulling these changes:
 
 2. **Add the phone number to `.env`**:
    ```env
-   DEMO_ASHA_PHONE="+918779112231"
+   DEMO_ASHA_PHONE="+91XXXXXXXXXX"  # Replace with your phone number
    ```
 
 3. **Restart your development server**:

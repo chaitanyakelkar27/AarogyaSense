@@ -36,14 +36,14 @@ npm run dev
 ```env
 DATABASE_URL="file:./prisma/dev.db"
 JWT_SECRET="your-secret-here"
-DEMO_ASHA_PHONE="+918779112231"
+DEMO_ASHA_PHONE="+91XXXXXXXXXX"
 ```
 
 ### Full Setup (with Twilio & OpenAI)
 ```env
 DATABASE_URL="file:./prisma/dev.db"
 JWT_SECRET="your-secret-here"
-DEMO_ASHA_PHONE="+918779112231"
+DEMO_ASHA_PHONE="+91XXXXXXXXXX"
 
 # Twilio
 TWILIO_ACCOUNT_SID="ACxxxxxxxx"
@@ -188,7 +188,7 @@ cat .gitignore | grep .env
 
 ### Twilio Not Working
 1. Check credentials in Twilio console
-2. Verify phone number format (+918779112231)
+2. Verify phone number format (+91XXXXXXXXXX)
 3. Check Twilio logs for errors
 4. Ensure account has balance
 
@@ -219,7 +219,7 @@ Always use E.164 format:
 +[country_code][phone_number]
 
 Examples:
-+918779112231  (India)
++91XXXXXXXXXX  (India)
 +14155552671   (USA)
 +442071838750  (UK)
 ```
@@ -247,7 +247,7 @@ if (!locals.user) {
 import { sendSMS } from '$lib/server/twilio-client';
 
 await sendSMS({
-  to: '+918779112231',
+  to: '+91XXXXXXXXXX',
   message: 'Alert message',
   priority: 'high'
 });

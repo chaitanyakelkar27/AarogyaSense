@@ -43,7 +43,7 @@ TWILIO_PHONE_NUMBER="+1234567890"
 
 #### Demo ASHA Worker Phone (for Testing)
 ```env
-DEMO_ASHA_PHONE="+918779112231"
+DEMO_ASHA_PHONE="+91XXXXXXXXXX"
 ```
 - Used for testing alert notifications
 - Must be in E.164 format (e.g., +[country_code][number])

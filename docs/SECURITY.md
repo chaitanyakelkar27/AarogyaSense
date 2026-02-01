@@ -44,7 +44,7 @@
 
 ### Current Implementation
 
-The phone number `+918779112231` is now stored in:
+The phone number is now stored in:
 - **Development**: `.env` file (DEMO_ASHA_PHONE)
 - **Not in**: Source code (removed from all files)
 
@@ -53,7 +53,7 @@ The phone number `+918779112231` is now stored in:
 1. **E.164 Format**: Always use international format
    ```
    +[country_code][number]
-   Example: +918779112231
+   Example: +91XXXXXXXXXX
    ```
 
 2. **Validation**: Validate phone numbers before use
