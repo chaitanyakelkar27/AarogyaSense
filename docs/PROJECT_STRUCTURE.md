@@ -5,100 +5,85 @@
 ```
 AarogyaSense/
 ├── prisma/                      # Database schema and migrations
-│   ├── schema.prisma           # Prisma database schema
+│   ├── schema.prisma           # Prisma database schema (MongoDB)
 │   ├── seed.ts                 # Database seeding script
 │   └── migrations/             # Database migration files
 │
 ├── src/
 │   ├── lib/                    # Shared libraries and utilities
 │   │   ├── components/         # Reusable Svelte components
-│   │   │   ├── AIAnalysisPanel.svelte
 │   │   │   ├── LanguageSwitcher.svelte
 │   │   │   └── NotificationCenter.svelte
 │   │   │
 │   │   ├── server/             # Server-side utilities
-│   │   │   ├── auth.ts         # Authentication logic
+│   │   │   ├── auth.ts         # JWT authentication logic
 │   │   │   ├── prisma.ts       # Prisma client instance
-│   │   │   ├── twilio-client.ts # Twilio SMS/Voice integration
-│   │   │   └── websocket.ts    # WebSocket server
+│   │   │   ├── pusher.ts       # Pusher real-time events
+│   │   │   └── twilio-client.ts # Twilio SMS/Voice integration
 │   │   │
 │   │   ├── stores/             # Svelte stores for state management
-│   │   │   ├── auth-store.ts
-│   │   │   └── socket-store.ts
+│   │   │   ├── auth-store.ts   # Authentication state
+│   │   │   └── pusher-store.ts # Real-time events (SOS, case updates)
 │   │   │
-│   │   ├── ai/                 # AI/ML modules
-│   │   │   ├── image-analyzer.ts
-│   │   │   ├── model-loader.ts
-│   │   │   ├── risk-scorer.ts
-│   │   │   └── voice-analyzer.ts
-│   │   │
-│   │   ├── i18n/               # Internationalization
+│   │   ├── i18n/               # Internationalization (4 languages)
 │   │   │   ├── index.ts
-│   │   │   └── locales/        # Translation files
-│   │   │       ├── en.json
-│   │   │       ├── hi.json
-│   │   │       ├── kn.json
-│   │   │       └── mr.json
+│   │   │   └── locales/
+│   │   │       ├── en.json     # English
+│   │   │       ├── hi.json     # Hindi
+│   │   │       ├── kn.json     # Kannada
+│   │   │       └── mr.json     # Marathi
 │   │   │
-│   │   └── *.ts                # Utility modules
-│   │       ├── api-client.ts
-│   │       ├── edge-ai-diagnostics.ts
-│   │       ├── healthcare-system-integration.ts
-│   │       ├── multilingual-voice-interface.ts
-│   │       ├── offline-data-manager.ts
-│   │       ├── patient-followup-system.ts
-│   │       └── privacy-security-framework.ts
+│   │   ├── api-client.ts       # Frontend API client
+│   │   ├── offline-data-manager.ts # PWA offline support
+│   │   └── index.ts            # Library exports
 │   │
 │   ├── routes/                 # SvelteKit routes (pages and API)
-│   │   ├── +layout.svelte      # Root layout
-│   │   ├── +page.svelte        # Home page
+│   │   ├── +layout.svelte      # Root layout with navigation
+│   │   ├── +layout.server.ts   # Server-side layout data
+│   │   ├── +page.svelte        # Home/Dashboard page
 │   │   │
-│   │   ├── api/                # API endpoints
-│   │   │   ├── ai/
-│   │   │   │   └── chat/       # AI chat endpoint
+│   │   ├── api/                # REST API endpoints
+│   │   │   ├── ai/chat/        # Groq AI chat endpoint
 │   │   │   ├── alerts/         # Alert management
-│   │   │   │   ├── send/       # Send alerts
-│   │   │   │   └── [id]/read/  # Mark alert as read
-│   │   │   ├── analytics/      # Analytics endpoints
-│   │   │   ├── auth/           # Authentication
-│   │   │   │   ├── login/
-│   │   │   │   └── register/
-│   │   │   ├── cases/          # Case management
-│   │   │   ├── chw/            # CHW endpoints
-│   │   │   ├── clinician/      # Clinician endpoints
-│   │   │   ├── test-call/      # Test Twilio calls
-│   │   │   ├── twilio-status/  # Twilio status check
+│   │   │   ├── auth/           # Login & Register
+│   │   │   ├── cases/          # Case CRUD operations
+│   │   │   ├── sos/            # SOS emergency alerts
 │   │   │   └── upload/         # File upload
 │   │   │
-│   │   ├── auth/               # Authentication page
-│   │   ├── asha/               # ASHA worker interface
-│   │   ├── chw/                # Community Health Worker interface
-│   │   │   └── ai/             # CHW AI features
-│   │   ├── chw-new/            # New CHW interface
-│   │   └── clinician/          # Clinician interface
+│   │   ├── auth/               # Login/Register page
+│   │   ├── asha/               # ASHA supervisor portal
+│   │   ├── chw/                # CHW assessment interface
+│   │   └── clinician/          # Clinician review portal
 │   │
-│   ├── app.css                 # Global styles
-│   ├── app.d.ts                # TypeScript app declarations
+│   ├── app.css                 # Global styles (Tailwind)
+│   ├── app.d.ts                # TypeScript declarations
 │   └── app.html                # HTML template
 │
-├── static/                     # Static assets
-│
+├── static/                     # Static assets (favicon, images)
 ├── docs/                       # Documentation
-│   └── ENVIRONMENT_SETUP.md    # Environment setup guide
 │
-├── .env                        # Environment variables (not in git)
-├── .env.example                # Example environment file
-├── .gitignore                  # Git ignore rules
-├── eslint.config.js            # ESLint configuration
+├── .env                        # Environment variables (gitignored)
+├── .env.example                # Example environment template
 ├── package.json                # NPM dependencies
-├── postcss.config.js           # PostCSS configuration
-├── README.md                   # Project README
 ├── svelte.config.js            # SvelteKit configuration
 ├── tailwind.config.js          # Tailwind CSS configuration
 ├── tsconfig.json               # TypeScript configuration
-├── vite.config.ts              # Vite configuration
-└── vitest-setup-client.ts      # Vitest test setup
+└── vite.config.ts              # Vite + PWA configuration
 ```
+
+## Tech Stack Summary
+
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | SvelteKit 2.0, Svelte 5, TypeScript |
+| **Styling** | Tailwind CSS 3.4 |
+| **Database** | MongoDB Atlas + Prisma ORM |
+| **AI** | Groq API (Llama 3.1) |
+| **Real-time** | Pusher Channels |
+| **SMS/Voice** | Twilio |
+| **Auth** | JWT (bcrypt) |
+| **i18n** | svelte-i18n (EN, HI, KN, MR) |
+| **PWA** | vite-plugin-pwa |
 
 ## Key Directories Explained
 

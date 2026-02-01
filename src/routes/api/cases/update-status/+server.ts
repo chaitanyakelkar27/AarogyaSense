@@ -1,7 +1,7 @@
 import { json, type RequestEvent } from '@sveltejs/kit';
 import { PrismaClient } from '@prisma/client';
 import { extractToken, verifyToken } from '$lib/server/auth';
-import { emitCaseUpdate } from '$lib/server/websocket';
+import { emitCaseUpdatePusher } from '$lib/server/pusher';
 
 const prisma = new PrismaClient();
 
@@ -54,8 +54,8 @@ export async function PATCH({ request }: RequestEvent) {
 			}
 		});
 
-		// Emit WebSocket event for real-time updates
-		emitCaseUpdate(caseId, updatedCase.status, payload.userId);
+		// Emit Pusher event for real-time updates
+		await emitCaseUpdatePusher(caseId, updatedCase.status, payload.userId);
 
 		return json({
 			success: true,

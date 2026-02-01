@@ -1,14 +1,27 @@
 <script lang="ts">
 	import '../app.css';
 	import '$lib/i18n';
+	import { onMount, onDestroy } from 'svelte';
 	import { authStore } from '$lib/stores/auth-store';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { fade, fly } from 'svelte/transition';
 	import { _, locale } from 'svelte-i18n';
 	import LanguageSwitcher from '$lib/components/LanguageSwitcher.svelte';
+	import { initializePusher, disconnectPusher } from '$lib/stores/pusher-store';
 
-	let { children } = $props();
+	let { children, data } = $props();
+
+	// Initialize Pusher on mount
+	onMount(() => {
+		if (data?.pusherKey) {
+			initializePusher(data.pusherKey, data.pusherCluster || 'ap2');
+		}
+	});
+
+	onDestroy(() => {
+		disconnectPusher();
+	});
 
 	// Role-based access control
 	const roleAccess = {
@@ -72,7 +85,9 @@
 </script>
 
 <div class="flex min-h-screen flex-col">
-	<header class="sticky top-0 z-40 w-full border-b border-border/40 bg-surface/80 backdrop-blur-md supports-[backdrop-filter]:bg-surface/60">
+	<header
+		class="sticky top-0 z-40 w-full border-b border-border/40 bg-surface/80 backdrop-blur-md supports-[backdrop-filter]:bg-surface/60"
+	>
 		<div class="flex h-16 w-full items-center justify-between px-4 sm:px-8">
 			<a href="/" class="flex items-center gap-3" onclick={closeMenu}>
 				<div
@@ -91,7 +106,9 @@
 						/>
 					</svg>
 				</div>
-				<span class="font-display text-lg font-semibold tracking-tight text-surface-emphasis">AarogyaSense</span>
+				<span class="font-display text-lg font-semibold tracking-tight text-surface-emphasis"
+					>AarogyaSense</span
+				>
 			</a>
 			<nav class="hidden items-center gap-6 lg:flex">
 				{#each navItems() as item}
@@ -194,7 +211,11 @@
 	</header>
 	<main class="flex-1 relative">
 		{#key $page.url.pathname}
-			<div in:fly={{ y: 20, duration: 400, delay: 200 }} out:fade={{ duration: 200 }} class="min-h-full">
+			<div
+				in:fly={{ y: 20, duration: 400, delay: 200 }}
+				out:fade={{ duration: 200 }}
+				class="min-h-full"
+			>
 				{@render children()}
 			</div>
 		{/key}

@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { emitSOSAlert } from '$lib/server/websocket';
+import { emitSOSAlertPusher } from '$lib/server/pusher';
 
 export const POST: RequestHandler = async ({ request }) => {
     try {
@@ -14,8 +14,8 @@ export const POST: RequestHandler = async ({ request }) => {
         // Generate unique SOS ID
         const sosId = `sos_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-        // Emit SOS alert to all connected clients via WebSocket
-        emitSOSAlert({
+        // Emit SOS alert to all connected clients via Pusher
+        await emitSOSAlertPusher({
             id: sosId,
             senderName,
             senderRole: senderRole || 'Unknown',

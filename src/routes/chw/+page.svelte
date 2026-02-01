@@ -5,13 +5,7 @@
 	import { authStore } from '$lib/stores/auth-store';
 	import { apiClient } from '$lib/api-client';
 	import { get } from 'svelte/store';
-	import {
-		initializeSocket,
-		subscribeToCaseUpdates,
-		disconnectSocket,
-		activeSOSAlert,
-		dismissSOSAlert
-	} from '$lib/stores/socket-store';
+	import { activeSOSAlert, dismissSOSAlert, caseUpdates } from '$lib/stores/pusher-store';
 
 	let unauthorized = false;
 	let loading = false;
@@ -547,8 +541,6 @@
 		};
 	}
 
-	let unsubscribe: (() => void) | undefined;
-
 	onMount(() => {
 		const state = get(authStore);
 		if (!state.isAuthenticated) {
@@ -565,13 +557,11 @@
 		// Initialize voice input
 		initVoiceInput();
 
-		// Initialize WebSocket connection
-		initializeSocket();
-
-		// Subscribe to real-time case updates
-		unsubscribe = subscribeToCaseUpdates((data) => {
-			console.log('Received case update:', data);
-			// You can add notification or UI feedback here if needed
+		// Subscribe to real-time case updates (Pusher initialized in layout)
+		const caseUnsubscribe = caseUpdates.subscribe((updates) => {
+			if (updates.length > 0) {
+				console.log('Received case updates:', updates);
+			}
 		});
 
 		// Subscribe to SOS alerts
@@ -585,6 +575,7 @@
 
 		return () => {
 			sosUnsubscribe();
+			caseUnsubscribe();
 		};
 	});
 
@@ -624,13 +615,7 @@
 		dismissSOSAlert();
 	}
 
-	onDestroy(() => {
-		// Clean up WebSocket subscription
-		if (unsubscribe) {
-			unsubscribe();
-		}
-		disconnectSocket();
-	});
+	// onDestroy handled by layout's Pusher cleanup
 </script>
 
 {#if unauthorized}

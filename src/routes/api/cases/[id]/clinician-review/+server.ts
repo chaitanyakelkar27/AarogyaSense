@@ -6,7 +6,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { PrismaClient } from '@prisma/client';
-import { emitCaseUpdate } from '$lib/server/websocket';
+import { emitCaseUpdatePusher } from '$lib/server/pusher';
 
 const prisma = new PrismaClient();
 
@@ -18,14 +18,14 @@ export const PUT: RequestHandler = async ({ params, request }) => {
 		}
 
 		const body = await request.json();
-		const { 
-			action, 
-			diagnosis, 
-			prescription, 
-			notes, 
+		const {
+			action,
+			diagnosis,
+			prescription,
+			notes,
 			followUpDate,
 			clinicianId,
-			referralReason 
+			referralReason
 		} = body;
 
 		// Validate action
@@ -216,9 +216,9 @@ export const PUT: RequestHandler = async ({ params, request }) => {
 			});
 		}
 
-		// Emit WebSocket event for real-time updates
+		// Emit Pusher event for real-time updates
 		if (updatedCase) {
-			emitCaseUpdate(id, updatedCase.status, clinicianId || 'clinician');
+			await emitCaseUpdatePusher(id, updatedCase.status, clinicianId || 'clinician');
 		}
 
 		return json({

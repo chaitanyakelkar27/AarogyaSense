@@ -1,15 +1,11 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { _ } from 'svelte-i18n';
 	import { authStore } from '$lib/stores/auth-store';
 	import { apiClient } from '$lib/api-client';
 	import { get } from 'svelte/store';
-	import {
-		initializeSocket,
-		subscribeToCaseUpdates,
-		disconnectSocket
-	} from '$lib/stores/socket-store';
+	import { caseUpdates } from '$lib/stores/pusher-store';
 
 	let unauthorized = false;
 	let isLoading = true;
@@ -30,8 +26,6 @@
 		criticalCases: 0
 	};
 
-	let unsubscribe: (() => void) | undefined;
-
 	onMount(() => {
 		const state = get(authStore);
 		if (!state.isAuthenticated) {
@@ -47,26 +41,19 @@
 
 		loadCases();
 
-		// Initialize WebSocket connection
-		initializeSocket();
-
-		// Subscribe to real-time case updates
-		unsubscribe = subscribeToCaseUpdates((data) => {
-			console.log('Received case update:', data);
-			// Reload cases when any case is updated
-			loadCases();
+		// Subscribe to real-time case updates (Pusher initialized in layout)
+		const unsubscribe = caseUpdates.subscribe((updates) => {
+			if (updates.length > 0) {
+				console.log('Received case update:', updates);
+				loadCases();
+			}
 		});
 
 		const interval = setInterval(loadCases, 30000); // Refresh every 30s
-		return () => clearInterval(interval);
-	});
-
-	onDestroy(() => {
-		// Clean up WebSocket subscription
-		if (unsubscribe) {
+		return () => {
+			clearInterval(interval);
 			unsubscribe();
-		}
-		disconnectSocket();
+		};
 	});
 
 	async function loadCases() {
@@ -260,7 +247,9 @@
 {:else}
 	<div class="min-h-screen bg-background">
 		<!-- Header -->
-		<header class="bg-surface shadow-sm border-b border-border/50 sticky top-0 z-50 backdrop-blur-md bg-surface/90">
+		<header
+			class="bg-surface shadow-sm border-b border-border/50 sticky top-0 z-50 backdrop-blur-md bg-surface/90"
+		>
 			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
 				<div class="flex items-center gap-4">
 					<a
@@ -268,7 +257,12 @@
 						class="w-10 h-10 bg-brand rounded-xl flex items-center justify-center hover:bg-brand/90 transition-all shadow-sm hover:shadow-brand/20"
 						aria-label="Home"
 					>
-						<svg class="h-6 w-6 text-brand-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<svg
+							class="h-6 w-6 text-brand-foreground"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
 							<path
 								stroke-linecap="round"
 								stroke-linejoin="round"
@@ -287,7 +281,9 @@
 						<p class="text-sm font-bold text-surface-emphasis">{$authStore.user?.name}</p>
 						<p class="text-xs text-muted">{$_('asha.ashaWorker')}</p>
 					</div>
-					<div class="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold border border-accent/20">
+					<div
+						class="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold border border-accent/20"
+					>
 						{$authStore.user?.name?.charAt(0) || 'A'}
 					</div>
 				</div>
@@ -354,7 +350,9 @@
 					<!-- High Priority Cases Requiring Action -->
 					<div class="rounded-lg bg-surface shadow-sm ring-1 ring-border">
 						<div class="border-b border-border px-6 py-4">
-							<h2 class="text-xl font-bold text-surface-emphasis">{$_('asha.highPriorityCases')}</h2>
+							<h2 class="text-xl font-bold text-surface-emphasis">
+								{$_('asha.highPriorityCases')}
+							</h2>
 							<p class="mt-1 text-sm text-surface-muted">{$_('asha.requiresAttention')}</p>
 						</div>
 						{#if highPriorityCases.length === 0}
@@ -426,8 +424,7 @@
 													<p class="mb-1 text-sm text-surface-muted">Symptoms:</p>
 													<div class="flex flex-wrap gap-2">
 														{#each parseSymptoms(caseItem.symptoms) as symptom}
-															<span
-																class="rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800"
+															<span class="rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800"
 																>{symptom}</span
 															>
 														{/each}
@@ -523,7 +520,9 @@
 												</div>
 												<div>
 													<span class="text-surface-muted">Priority:</span>
-													<span class="ml-1 font-bold text-surface-emphasis">{caseItem.priority}/5</span>
+													<span class="ml-1 font-bold text-surface-emphasis"
+														>{caseItem.priority}/5</span
+													>
 												</div>
 												<div>
 													<span class="text-surface-muted">Risk Score:</span>
@@ -537,8 +536,7 @@
 												<p class="mb-1 text-sm text-surface-muted">Symptoms:</p>
 												<div class="flex flex-wrap gap-2">
 													{#each parseSymptoms(caseItem.symptoms) as symptom}
-														<span
-															class="rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800"
+														<span class="rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800"
 															>{symptom}</span
 														>
 													{/each}
@@ -589,7 +587,9 @@
 	{#if showCaseModal && selectedCase}
 		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
 			<div class="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-lg bg-surface shadow-xl">
-				<div class="sticky top-0 flex items-center justify-between border-b border-border bg-surface px-6 py-4">
+				<div
+					class="sticky top-0 flex items-center justify-between border-b border-border bg-surface px-6 py-4"
+				>
 					<h2 class="text-2xl font-bold text-surface-emphasis">Case Details</h2>
 					<button
 						onclick={() => (showCaseModal = false)}
@@ -614,7 +614,9 @@
 						<div class="grid grid-cols-2 gap-4 text-sm">
 							<div>
 								<span class="text-surface-muted">Name:</span>
-								<span class="ml-2 font-medium text-surface-emphasis">{selectedCase.patient?.name}</span>
+								<span class="ml-2 font-medium text-surface-emphasis"
+									>{selectedCase.patient?.name}</span
+								>
 							</div>
 							<div>
 								<span class="text-surface-muted">Age:</span>
@@ -624,7 +626,9 @@
 							</div>
 							<div>
 								<span class="text-surface-muted">Gender:</span>
-								<span class="ml-2 font-medium text-surface-emphasis">{selectedCase.patient?.gender}</span>
+								<span class="ml-2 font-medium text-surface-emphasis"
+									>{selectedCase.patient?.gender}</span
+								>
 							</div>
 							<div>
 								<span class="text-surface-muted">Phone:</span>

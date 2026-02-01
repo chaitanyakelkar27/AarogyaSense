@@ -2,12 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { _ } from 'svelte-i18n';
 	import OfflineDataManager from '$lib/offline-data-manager';
-	import {
-		initializeSocket,
-		disconnectSocket,
-		activeSOSAlert,
-		dismissSOSAlert
-	} from '$lib/stores/socket-store';
+	import { activeSOSAlert, dismissSOSAlert } from '$lib/stores/pusher-store';
 	import { authStore } from '$lib/stores/auth-store';
 	import { get } from 'svelte/store';
 
@@ -57,10 +52,7 @@
 		dataManager = new OfflineDataManager();
 		loadSystemStats();
 
-		// Initialize WebSocket for SOS alerts
-		initializeSocket();
-
-		// Subscribe to SOS alerts
+		// Subscribe to SOS alerts (Pusher is initialized in layout)
 		const unsubscribe = activeSOSAlert.subscribe((alert) => {
 			if (alert) {
 				currentSOSAlert = alert;
@@ -88,7 +80,6 @@
 			window.removeEventListener('online', handleOnline);
 			window.removeEventListener('offline', handleOffline);
 			unsubscribe();
-			disconnectSocket();
 		};
 	});
 
